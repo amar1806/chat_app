@@ -3,137 +3,349 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>P2P Connect</title>
+    <title>P2P Connect - Modern Chat</title>
     
     <link rel="manifest" href="/static/manifest.json">
     <link rel="icon" type="image/png" href="/static/images/logo_192.png">
-    <meta name="theme-color" content="#1e1b4b">
+    <meta name="theme-color" content="#0f172a">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.6"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
     <style>
-        body { font-family: 'Inter', sans-serif; overflow: hidden; background: #fff; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            overflow: hidden; 
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #1e293b;
+        }
         
         #app-layout { display: flex; height: 100vh; width: 100vw; }
         
-        /* COL 1: DESKTOP NAV */
-        #col-nav { width: 80px; background: #1e1b4b; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; z-index: 50; }
-
-        /* COL 2: LIST */
-        #col-list { width: 350px; background: #ffffff; border-right: 1px solid #f3f4f6; display: flex; flex-direction: column; position: relative; resize: horizontal; overflow: hidden; min-width: 300px; max-width: 500px; }
-
-        /* COL 3: MAIN STAGE */
-        #col-stage { flex: 1; background: #f3f4f6; position: relative; display: flex; flex-direction: column; min-width: 0; }
-
-        /* MOBILE OVERRIDES */
-        @media (max-width: 768px) {
-            #col-nav { display: none; } 
-            #col-list { width: 100% !important; border: none; resize: none; }
-            #col-stage { width: 100%; display: none; z-index: 100; position: fixed; top: 0; left: 0; height: 100%; }
-            
-            body.chat-open #col-list { display: none; }
-            body.chat-open #col-stage { display: flex; }
+        /* COL 1: SIDEBAR - Desktop Navigation */
+        #col-nav { 
+            width: 70px; 
+            background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+            flex-shrink: 0; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            z-index: 50;
+            border-right: 1px solid rgba(255,255,255,0.1);
+            padding: 16px 0;
         }
 
-        .hide-scroll::-webkit-scrollbar { display: none; }
-        .nav-active { background-color: #4f46e5; color: white; border-radius: 12px; }
+        /* COL 2: CHAT LIST */
+        #col-list { 
+            width: 320px; 
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            display: flex; 
+            flex-direction: column; 
+            position: relative; 
+            resize: horizontal; 
+            overflow: hidden; 
+            min-width: 280px; 
+            max-width: 400px;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.08);
+        }
+
+        /* COL 3: CHAT SECTION */
+        #col-stage { 
+            flex: 1; 
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            position: relative; 
+            display: flex; 
+            flex-direction: column; 
+            min-width: 0;
+        }
+
+        /* MOBILE RESPONSIVE */
+        @media (max-width: 768px) {
+            #col-nav { 
+                display: none; 
+            } 
+            #col-list { 
+                width: 100% !important; 
+                resize: none;
+                box-shadow: none;
+            }
+            #col-stage { 
+                width: 100%; 
+                display: none; 
+                z-index: 100; 
+                position: fixed; 
+                top: 0; 
+                left: 0; 
+                height: 100%;
+                border-radius: 0;
+            }
+            
+            body.chat-open #col-list { 
+                display: none; 
+            }
+            body.chat-open #col-stage { 
+                display: flex; 
+            }
+        }
+
+        /* SIDEBAR STYLING */
+        .nav-btn {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: rgba(226, 232, 240, 0.6);
+            font-size: 18px;
+            margin: 6px 0;
+            border: none;
+            background: transparent;
+        }
+
+        .nav-btn:hover {
+            background: rgba(255,255,255,0.15);
+            color: rgba(226, 232, 240, 1);
+            transform: translateY(-2px);
+        }
+
+        .nav-active {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        /* HIDE SCROLLBAR */
+        .hide-scroll {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .hide-scroll::-webkit-scrollbar { 
+            display: none; 
+        }
+
+        /* ANIMATIONS */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .animate-slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .animate-fade-in {
+            animation: fadeIn 0.2s ease-out;
+        }
     </style>
 </head>
 <body id="body">
 
     <div id="app-layout">
         
-        <nav id="col-nav" class="py-6 shadow-xl hidden md:flex">
-            <div class="mb-10 p-1">
-                <img src="/static/images/logo_192.png" class="w-10 h-10 rounded-lg shadow-lg opacity-90">
+        <!-- SIDEBAR - Desktop Only -->
+        <nav id="col-nav" class="hidden md:flex">
+            <!-- Logo -->
+            <div class="mb-8 p-2 hover:scale-110 transition duration-300 cursor-pointer">
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+                    <i class="fas fa-comments text-white text-lg font-bold"></i>
+                </div>
             </div>
             
-            <div class="space-y-6 flex-1 w-full flex flex-col items-center">
-                <div class="w-12 h-12 flex items-center justify-center text-indigo-300 hover:text-white cursor-pointer transition nav-active" 
-                     onclick="switchTab(this)" hx-get="{% url 'list_chats' %}" hx-target="#list-content">
-                    <i class="fas fa-comment-alt text-xl"></i>
-                </div>
-                <div class="w-12 h-12 flex items-center justify-center text-indigo-300 hover:text-white cursor-pointer transition" 
-                     onclick="switchTab(this)" hx-get="{% url 'channels_page' %}" hx-target="#main-panel">
-                    <i class="fas fa-bullhorn text-xl"></i>
-                </div>
-                <div class="w-12 h-12 flex items-center justify-center text-indigo-300 hover:text-white cursor-pointer transition" 
-                     onclick="switchTab(this)" hx-get="{% url 'calls_page' %}" hx-target="#main-panel">
-                    <i class="fas fa-phone-alt text-xl"></i>
-                </div>
+            <!-- Navigation Items -->
+            <div class="space-y-4 flex-1 w-full flex flex-col items-center">
+                <!-- Chats -->
+                <button class="nav-btn nav-active" 
+                        onclick="switchTab(this)" 
+                        hx-get="{% url 'list_chats' %}" 
+                        hx-target="#list-content"
+                        title="Chats">
+                    <i class="fas fa-comment-dots"></i>
+                </button>
+                
+                <!-- Channels -->
+                <button class="nav-btn" 
+                        onclick="switchTab(this)" 
+                        hx-get="{% url 'channels_page' %}" 
+                        hx-target="#main-panel"
+                        title="Channels">
+                    <i class="fas fa-volume-up"></i>
+                </button>
+                
+                <!-- Calls -->
+                <button class="nav-btn" 
+                        onclick="switchTab(this)" 
+                        hx-get="{% url 'calls_page' %}" 
+                        hx-target="#main-panel"
+                        title="Calls">
+                    <i class="fas fa-phone"></i>
+                </button>
             </div>
 
-            <div class="mb-4">
-                <div class="w-10 h-10 rounded-full border-2 border-indigo-500/50 cursor-pointer overflow-hidden hover:scale-105 transition"
-                     hx-get="{% url 'settings_page' %}" hx-target="#main-panel" onclick="openMobileStage()">
-                    <img src="https://ui-avatars.com/api/?name={{ request.user.username }}" class="w-full h-full object-cover">
-                </div>
-            </div>
+            <!-- Profile/Menu Button -->
+            <button class="nav-btn hover:bg-red-500/20" 
+                    onclick="openMobileDrawer()"
+                    title="Menu">
+                <i class="fas fa-ellipsis-v"></i>
+            </button>
         </nav>
 
+        <!-- CHAT LIST COLUMN -->
         <aside id="col-list">
-            <div class="h-16 flex items-center justify-between px-4 border-b border-gray-100 bg-white flex-shrink-0">
-                <button class="md:hidden text-gray-600 p-2" onclick="document.getElementById('mobile-drawer').classList.remove('-translate-x-full')">
-                    <i class="fas fa-bars text-xl"></i>
-                </button>
-                <h1 class="text-xl font-bold text-gray-800 tracking-tight">P2P Connect</h1>
-                <button onclick="toggleSearch()" class="text-gray-500 hover:bg-gray-100 p-2 rounded-full">
-                    <i class="fas fa-search"></i>
-                </button>
+            <!-- Header with Search -->
+            <div class="bg-white border-b border-gray-100 sticky top-0 z-40 shadow-sm">
+                <div class="p-4 space-y-4">
+                    <!-- Header Row -->
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h1 class="text-2xl font-bold text-gray-900">Chats</h1>
+                            <p class="text-xs text-gray-500 mt-0.5">Stay connected</p>
+                        </div>
+                        <!-- Mobile Hamburger -->
+                        <button class="md:hidden p-2 hover:bg-gray-100 rounded-lg transition"
+                                onclick="openMobileDrawer()">
+                            <i class="fas fa-bars text-gray-700 text-lg"></i>
+                        </button>
+                        <!-- Desktop Menu Button -->
+                        <div class="hidden md:flex gap-2">
+                            <button class="p-2 hover:bg-gray-100 rounded-lg transition text-gray-600"
+                                    onclick="toggleSearch()">
+                                <i class="fas fa-search"></i>
+                            </button>
+                            <button class="p-2 hover:bg-gray-100 rounded-lg transition text-gray-600"
+                                    onclick="openMobileDrawer()">
+                                <i class="fas fa-ellipsis-h"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Search Box -->
+                    <div id="search-container" class="hidden">
+                        <div class="relative">
+                            <i class="fas fa-search absolute left-3 top-3 text-gray-400 text-sm"></i>
+                            <input type="text" 
+                                   placeholder="Search chats..." 
+                                   class="w-full bg-gray-100 rounded-lg py-2 pl-10 pr-4 text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
+                                   hx-get="{% url 'list_chats' %}" 
+                                   hx-target="#list-content" 
+                                   hx-trigger="keyup changed delay:500ms">
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <div id="search-container" class="hidden px-4 mb-2 transition-all">
-                <input type="text" name="search" placeholder="Search chats..." 
-                       class="w-full bg-gray-100 rounded-lg py-2 px-4 text-sm outline-none focus:ring-2 focus:ring-indigo-100"
-                       hx-get="{% url 'list_chats' %}" hx-target="#list-content" hx-trigger="keyup changed delay:500ms">
-            </div>
-
-            <div id="list-content" class="flex-1 overflow-y-auto hide-scroll p-2">
+            <!-- Chat List Content -->
+            <div id="list-content" class="flex-1 overflow-y-auto hide-scroll">
                 {% include 'chat/partials/list_chats.html' %}
             </div>
 
+            <!-- New Chat Button -->
             <button onclick="htmx.ajax('GET', '{% url 'contacts_page' %}', '#main-panel'); openMobileStage()" 
-                    class="absolute bottom-20 md:bottom-6 right-6 w-14 h-14 bg-indigo-600 text-white rounded-full shadow-lg flex items-center justify-center text-xl z-30 hover:scale-105 transition hover:shadow-indigo-300">
+                    class="absolute bottom-6 right-6 w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-full shadow-lg flex items-center justify-center text-xl z-30 hover:scale-110 transition hover:shadow-xl active:scale-95">
                 <i class="fas fa-plus"></i>
             </button>
 
-            <div class="md:hidden h-16 border-t border-gray-100 flex justify-around items-center bg-white z-20 flex-shrink-0">
-                <button class="text-indigo-600 flex flex-col items-center" onclick="switchTabMobile(this)" hx-get="{% url 'list_chats' %}" hx-target="#list-content">
-                    <i class="fas fa-comment-alt text-lg"></i><span class="text-[10px]">Chats</span>
+            <!-- Mobile Bottom Tabs (Mobile only) -->
+            <div class="md:hidden h-16 border-t border-gray-200 flex justify-around items-center bg-white flex-shrink-0 shadow-lg">
+                <button class="text-blue-600 flex flex-col items-center gap-1 flex-1 py-2 transition" 
+                        onclick="switchTabMobile(this)" 
+                        hx-get="{% url 'list_chats' %}" 
+                        hx-target="#list-content">
+                    <i class="fas fa-comment-dots text-lg"></i>
+                    <span class="text-xs font-medium">Chats</span>
                 </button>
-                <button class="text-gray-400 flex flex-col items-center" onclick="switchTabMobile(this)" hx-get="{% url 'status_page' %}" hx-target="#main-panel">
-                    <i class="far fa-dot-circle text-lg"></i><span class="text-[10px]">Status</span>
+                <button class="text-gray-400 flex flex-col items-center gap-1 flex-1 py-2 transition hover:text-gray-600" 
+                        onclick="switchTabMobile(this)" 
+                        hx-get="{% url 'channels_page' %}" 
+                        hx-target="#main-panel">
+                    <i class="fas fa-volume-up text-lg"></i>
+                    <span class="text-xs font-medium">Channels</span>
                 </button>
-                <button class="text-gray-400 flex flex-col items-center" onclick="switchTabMobile(this)" hx-get="{% url 'calls_page' %}" hx-target="#main-panel">
-                    <i class="fas fa-phone-alt text-lg"></i><span class="text-[10px]">Calls</span>
+                <button class="text-gray-400 flex flex-col items-center gap-1 flex-1 py-2 transition hover:text-gray-600" 
+                        onclick="switchTabMobile(this)" 
+                        hx-get="{% url 'calls_page' %}" 
+                        hx-target="#main-panel">
+                    <i class="fas fa-phone text-lg"></i>
+                    <span class="text-xs font-medium">Calls</span>
                 </button>
             </div>
         </aside>
 
+        <!-- MAIN CHAT/CONTENT AREA -->
         <main id="col-stage">
-            <div id="main-panel" class="h-full flex flex-col relative bg-gray-50 w-full">
+            <div id="main-panel" class="h-full flex flex-col relative bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
+                <!-- Empty State -->
                 <div class="flex-1 flex flex-col items-center justify-center text-gray-400">
-                    <div class="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mb-4 animate-pulse">
-                        <img src="/static/images/logo_192.png" class="w-10 h-10 opacity-50">
+                    <div class="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-6 shadow-lg">
+                        <i class="fas fa-comments text-4xl text-blue-400"></i>
                     </div>
-                    <p class="text-sm">Select a chat to start messaging.</p>
+                    <p class="text-lg font-medium text-gray-600">Select a chat to start messaging</p>
+                    <p class="text-sm text-gray-500 mt-2">Choose from your contacts or start a new conversation</p>
                 </div>
             </div>
         </main>
 
-        <div id="mobile-drawer" class="fixed inset-0 z-[150] bg-black/50 hidden md:hidden" onclick="this.classList.add('hidden')">
-            <div class="w-72 h-full bg-white shadow-xl flex flex-col" onclick="event.stopPropagation()">
-                <div class="p-6 bg-[#1e1b4b] text-white">
-                    <h2 class="font-bold text-lg">{{ request.user.username }}</h2>
-                    <p class="text-xs text-indigo-200">{{ request.user.mobile }}</p>
+        <!-- MOBILE DRAWER MENU -->
+        <div id="mobile-drawer" class="fixed inset-0 z-[150] bg-black/50 hidden md:hidden" onclick="closeMobileDrawer()">
+            <div class="w-72 h-full bg-white shadow-2xl flex flex-col animate-slide-in" onclick="event.stopPropagation()">
+                <!-- User Profile Section -->
+                <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 space-y-3">
+                    <div class="w-16 h-16 rounded-full border-3 border-white/30 overflow-hidden">
+                        <img src="https://ui-avatars.com/api/?name={{ request.user.username }}&background=random" 
+                             class="w-full h-full object-cover">
+                    </div>
+                    <div>
+                        <h2 class="font-bold text-lg">{{ request.user.first_name|default:request.user.username }}</h2>
+                        <p class="text-blue-100 text-sm">{{ request.user.mobile }}</p>
+                    </div>
                 </div>
+
+                <!-- Menu Items -->
+                <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
+                    <button onclick="closeMobileDrawer(); htmx.ajax('GET', '{% url 'settings_page' %}', '#main-panel'); openMobileStage()" 
+                            class="w-full text-left p-4 rounded-lg hover:bg-blue-50 flex items-center gap-3 transition text-gray-700">
+                        <i class="fas fa-cog w-5 text-blue-600"></i>
+                        <span class="font-medium">Settings</span>
+                    </button>
+                    <button onclick="closeMobileDrawer(); htmx.ajax('GET', '{% url 'contacts_page' %}', '#main-panel'); openMobileStage()" 
+                            class="w-full text-left p-4 rounded-lg hover:bg-blue-50 flex items-center gap-3 transition text-gray-700">
+                        <i class="fas fa-users w-5 text-blue-600"></i>
+                        <span class="font-medium">Contacts</span>
+                    </button>
+                    <button class="w-full text-left p-4 rounded-lg hover:bg-gray-50 flex items-center gap-3 transition text-gray-700">
+                        <i class="fas fa-bell w-5 text-amber-600"></i>
+                        <span class="font-medium">Notifications</span>
+                    </button>
+                    <button class="w-full text-left p-4 rounded-lg hover:bg-gray-50 flex items-center gap-3 transition text-gray-700">
+                        <i class="fas fa-lock w-5 text-green-600"></i>
+                        <span class="font-medium">Privacy</span>
+                    </button>
+                </nav>
+
+                <!-- Divider -->
+                <div class="border-t border-gray-200"></div>
+
+                <!-- Logout Button -->
                 <div class="p-4">
-                    <button onclick="openMobileStage(); htmx.ajax('GET', '{% url 'settings_page' %}', '#main-panel')" 
-                            class="w-full text-left p-3 rounded-lg hover:bg-gray-50 flex items-center">
-                        <i class="fas fa-cog w-6 text-gray-400"></i> Settings
+                    <button class="w-full py-3 bg-red-500/10 text-red-600 rounded-lg hover:bg-red-500/20 transition font-medium flex items-center justify-center gap-2">
+                        <i class="fas fa-sign-out-alt"></i>
+                        Logout
                     </button>
                 </div>
             </div>
@@ -142,22 +354,34 @@
     </div>
 
     <script>
-        function openMobileStage() { if(window.innerWidth < 768) document.body.classList.add('chat-open'); }
-        function closeMobileStage() { document.body.classList.remove('chat-open'); }
+        function openMobileStage() { 
+            if(window.innerWidth < 768) document.body.classList.add('chat-open'); 
+        }
+        function closeMobileStage() { 
+            document.body.classList.remove('chat-open'); 
+        }
+        function openMobileDrawer() {
+            document.getElementById('mobile-drawer').classList.remove('hidden');
+        }
+        function closeMobileDrawer() {
+            document.getElementById('mobile-drawer').classList.add('hidden');
+        }
         function toggleSearch() { 
             const bar = document.getElementById('search-container');
             bar.classList.toggle('hidden');
             if(!bar.classList.contains('hidden')) bar.querySelector('input').focus();
         }
         function switchTab(el) { 
-            document.querySelectorAll('#col-nav div').forEach(d => d.classList.remove('nav-active')); 
+            document.querySelectorAll('.nav-btn').forEach(d => d.classList.remove('nav-active')); 
             el.classList.add('nav-active'); 
         }
         function switchTabMobile(el) {
-            document.querySelectorAll('.md\\:hidden button').forEach(b => { 
-                b.classList.remove('text-indigo-600'); b.classList.add('text-gray-400'); 
+            document.querySelectorAll('#col-list .md\\:hidden button').forEach(b => { 
+                b.classList.remove('text-blue-600'); 
+                b.classList.add('text-gray-400'); 
             });
-            el.classList.remove('text-gray-400'); el.classList.add('text-indigo-600');
+            el.classList.remove('text-gray-400'); 
+            el.classList.add('text-blue-600');
         }
         
         // Mobile Back Button Logic
