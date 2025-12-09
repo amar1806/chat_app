@@ -59,6 +59,9 @@
             </div>
             
             <div class="flex space-x-1">
+                <button id="save-contact-btn" class="w-10 h-10 rounded-xl bg-yellow-50 text-yellow-600 hover:bg-yellow-100 transition flex items-center justify-center" title="Save Contact">
+                    <i class="fas fa-star text-sm"></i>
+                </button>
                 <button onclick="startCall('video')" class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition flex items-center justify-center">
                     <i class="fas fa-video text-sm"></i>
                 </button>
@@ -84,14 +87,7 @@
             <p id="call-status" class="text-indigo-200 mt-2 font-medium animate-pulse">Connecting secure line...</p>
         </div>
 
-        <div class="absolute bottom-12 w-full flex justify-center space-x-6 z-10">
-            <button class="w-16 h-16 rounded-full bg-slate-700/50 backdrop-blur text-white flex items-center justify-center hover:bg-slate-600 transition">
-                <i class="fas fa-microphone-slash"></i>
-            </button>
-            <button onclick="endCall()" class="w-20 h-20 rounded-full bg-red-500 text-white flex items-center justify-center shadow-red-500/50 shadow-lg active:scale-90 transition">
-                <i class="fas fa-phone-slash text-2xl"></i>
-            </button>
-        </div>
+        <!-- Buttons will be injected here via JavaScript -->
     </div>
 
     <main id="chat-log" class="flex-1 overflow-y-auto p-4 pt-24 pb-4 space-y-4 no-scrollbar">
@@ -115,7 +111,7 @@
             <input id="chat-input" type="text" class="flex-1 bg-transparent px-3 outline-none text-slate-700 placeholder-slate-400 text-sm font-medium h-10" placeholder="Type a message..." autocomplete="off">
             
             <button id="send-btn" class="w-10 h-10 rounded-full bg-indigo-600 text-white shadow-lg shadow-indigo-200 flex items-center justify-center active:scale-90 transition flex-shrink-0">
-                <i class="fas fa-paper-plane text-xs"></i>
+                <i class="fas fa-send text-xs"></i>
             </button>
         </div>
     </div>
@@ -123,7 +119,23 @@
     <script>
         const roomId = "{{ chat.id }}";
         const currentUserId = "{{ request.user.id }}";
+        const otherUserId = "{{ other_user.id }}";
+        const currentUsername = "{{ request.user.username }}";
+        const otherUsername = "{{ other_user.username }}";
         const chatLog = document.getElementById('chat-log');
+        const saveContactBtn = document.getElementById('save-contact-btn');
+        
+        // Call state management
+        let callState = {
+            isActive: false,
+            callType: null,
+            callStartTime: null,
+            incomingCall: false,
+            callInitiator: null
+        };
+        
+        // Get user's timezone
+        const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
         
         function scrollToBottom() { 
             chatLog.scrollTop = chatLog.scrollHeight; 
@@ -133,18 +145,270 @@
         const wsUrl = `ws://${window.location.host}/ws/chat/${roomId}/`;
         const chatSocket = new WebSocket(wsUrl);
 
-        chatSocket.onmessage = function(e) {
-            const data = JSON.parse(e.data);
-            appendMessage(data.message, data.user_id);
+        chatSocket.onopen = function(e) {
+            console.log('WebSocket connection established');
         };
 
+        chatSocket.onerror = function(error) {
+            console.error('WebSocket error:', error);
+        };
+
+        chatSocket.onmessage = function(e) {
+            try {
+                const data = JSON.parse(e.data);
+                console.log('Received message:', data);
+                
+                // Handle call signals
+                if (data.type === 'call_signal' || data.signal_type) {
+                    handleCallSignal(data);
+                }
+                // Handle chat messages
+                else if (data.type === 'chat_message' || data.message) {
+                    appendMessage(data.message, data.user_id, data.timestamp || null);
+                }
+            } catch (err) {
+                console.error('Error parsing message:', err);
+            }
+        };
+
+        function handleCallSignal(data) {
+            console.log('Handling call signal:', data);
+            const signalType = data.signal_type;
+            const senderId = data.sender_id;
+            
+            if (signalType === 'call_initiate') {
+                // Incoming call
+                callState.incomingCall = true;
+                callState.callType = data.payload.callType;
+                callState.callInitiator = senderId;
+                showIncomingCallUI();
+            } 
+            else if (signalType === 'call_accept') {
+                // Call accepted
+                callState.isActive = true;
+                callState.callStartTime = new Date();
+                showActiveCallUI();
+                updateCallTimer();
+            } 
+            else if (signalType === 'call_reject') {
+                // Call rejected
+                endCall();
+                alert(`${otherUsername} rejected your call`);
+            } 
+            else if (signalType === 'call_end') {
+                // Call ended
+                endCall();
+            }
+        }
+
+        function showIncomingCallUI() {
+            const callOverlay = document.getElementById('call-overlay');
+            const callStatus = document.getElementById('call-status');
+            
+            callOverlay.classList.remove('hidden');
+            callStatus.innerHTML = `${otherUsername} is calling...`;
+            
+            // Add answer/reject buttons
+            const buttonsHtml = `
+                <div class="absolute bottom-12 w-full flex justify-center space-x-6 z-10">
+                    <button onclick="rejectCall()" class="w-16 h-16 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition">
+                        <i class="fas fa-phone-slash"></i>
+                    </button>
+                    <button onclick="acceptCall()" class="w-16 h-16 rounded-full bg-green-500 text-white flex items-center justify-center hover:bg-green-600 transition">
+                        <i class="fas fa-phone"></i>
+                    </button>
+                </div>`;
+            
+            const existingButtons = callOverlay.querySelector('.absolute.bottom-12');
+            if (existingButtons) {
+                existingButtons.remove();
+            }
+            callOverlay.insertAdjacentHTML('beforeend', buttonsHtml);
+        }
+
+        function showActiveCallUI() {
+            const callOverlay = document.getElementById('call-overlay');
+            const callStatus = document.getElementById('call-status');
+            
+            callOverlay.classList.remove('hidden');
+            callStatus.innerHTML = `<span id="call-timer">00:00</span> - ${callState.callType === 'video' ? 'Video Call' : 'Voice Call'}`;
+            
+            // Show only end call button
+            const buttonsHtml = `
+                <div class="absolute bottom-12 w-full flex justify-center space-x-6 z-10">
+                    <button class="w-16 h-16 rounded-full bg-slate-700/50 backdrop-blur text-white flex items-center justify-center hover:bg-slate-600 transition">
+                        <i class="fas fa-microphone text-lg"></i>
+                    </button>
+                    <button onclick="endCall()" class="w-20 h-20 rounded-full bg-red-500 text-white flex items-center justify-center shadow-red-500/50 shadow-lg active:scale-90 transition">
+                        <i class="fas fa-phone-slash text-2xl"></i>
+                    </button>
+                    <button class="w-16 h-16 rounded-full bg-slate-700/50 backdrop-blur text-white flex items-center justify-center hover:bg-slate-600 transition">
+                        <i class="fas fa-video text-lg"></i>
+                    </button>
+                </div>`;
+            
+            const existingButtons = callOverlay.querySelector('.absolute.bottom-12');
+            if (existingButtons) {
+                existingButtons.remove();
+            }
+            callOverlay.insertAdjacentHTML('beforeend', buttonsHtml);
+        }
+
+        function updateCallTimer() {
+            if (!callState.isActive) return;
+            
+            const elapsed = Math.floor((new Date() - callState.callStartTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+            const timerDisplay = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            
+            const timerElement = document.getElementById('call-timer');
+            if (timerElement) {
+                timerElement.textContent = timerDisplay;
+            }
+            
+            setTimeout(updateCallTimer, 1000);
+        }
+
         function startCall(type) {
-            document.getElementById('call-overlay').classList.remove('hidden');
-            document.getElementById('call-status').innerText = type === 'video' ? "Requesting Video..." : "Calling Mobile...";
+            if (callState.isActive || callState.incomingCall) {
+                alert('A call is already active');
+                return;
+            }
+
+            callState.callType = type;
+            callState.isActive = false;
+            callState.incomingCall = false;
+            
+            // Send call initiate signal
+            chatSocket.send(JSON.stringify({
+                'type': 'call_signal',
+                'user_id': currentUserId,
+                'signal_type': 'call_initiate',
+                'payload': {
+                    'callType': type,
+                    'callerId': currentUserId,
+                    'callerName': currentUsername
+                }
+            }));
+            
+            // Show calling UI
+            const callOverlay = document.getElementById('call-overlay');
+            const callStatus = document.getElementById('call-status');
+            
+            callOverlay.classList.remove('hidden');
+            callStatus.innerHTML = `Calling ${otherUsername}...`;
+            
+            // Add cancel button
+            const buttonsHtml = `
+                <div class="absolute bottom-12 w-full flex justify-center space-x-6 z-10">
+                    <button onclick="endCall()" class="w-20 h-20 rounded-full bg-red-500 text-white flex items-center justify-center shadow-red-500/50 shadow-lg active:scale-90 transition">
+                        <i class="fas fa-phone-slash text-2xl"></i>
+                    </button>
+                </div>`;
+            
+            const existingButtons = callOverlay.querySelector('.absolute.bottom-12');
+            if (existingButtons) {
+                existingButtons.remove();
+            }
+            callOverlay.insertAdjacentHTML('beforeend', buttonsHtml);
+        }
+
+        function acceptCall() {
+            callState.isActive = true;
+            callState.callStartTime = new Date();
+            
+            // Send accept signal
+            chatSocket.send(JSON.stringify({
+                'type': 'call_signal',
+                'user_id': currentUserId,
+                'signal_type': 'call_accept',
+                'payload': {
+                    'responderId': currentUserId,
+                    'responderName': currentUsername
+                }
+            }));
+            
+            showActiveCallUI();
+            updateCallTimer();
+        }
+
+        function rejectCall() {
+            callState.incomingCall = false;
+            
+            // Send reject signal
+            chatSocket.send(JSON.stringify({
+                'type': 'call_signal',
+                'user_id': currentUserId,
+                'signal_type': 'call_reject',
+                'payload': {}
+            }));
+            
+            endCall();
         }
 
         function endCall() {
+            if (callState.isActive || callState.incomingCall) {
+                // Send end signal
+                chatSocket.send(JSON.stringify({
+                    'type': 'call_signal',
+                    'user_id': currentUserId,
+                    'signal_type': 'call_end',
+                    'payload': {}
+                }));
+            }
+            
+            callState.isActive = false;
+            callState.incomingCall = false;
+            callState.callType = null;
+            callState.callStartTime = null;
+            
             document.getElementById('call-overlay').classList.add('hidden');
+        }
+
+        // Save Contact Feature
+        if (saveContactBtn) {
+            saveContactBtn.onclick = function() {
+                const contactName = prompt("Enter a name for this contact:", otherUsername);
+                if (contactName && contactName.trim()) {
+                    fetch('{% url "save_contact_api" %}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCsrfToken()
+                        },
+                        body: JSON.stringify({
+                            contact_user_id: otherUserId,
+                            contact_name: contactName.trim()
+                        })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            saveContactBtn.innerHTML = '<i class="fas fa-star text-sm"></i>';
+                            saveContactBtn.classList.add('bg-yellow-200');
+                            alert('Contact saved!');
+                        } else {
+                            alert(data.error || 'Failed to save contact');
+                        }
+                    })
+                    .catch(err => console.error('Error saving contact:', err));
+                }
+            };
+        }
+
+        // CSRF Token Helper
+        function getCsrfToken() {
+            const token = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+            if (token) return token;
+            
+            const cookies = document.cookie.split('; ');
+            for (let cookie of cookies) {
+                if (cookie.startsWith('csrftoken=')) {
+                    return cookie.split('=')[1];
+                }
+            }
+            return '';
         }
 
         document.getElementById('send-btn').onclick = sendMessage;
@@ -153,28 +417,70 @@
         function sendMessage() {
             const input = document.getElementById('chat-input');
             const message = input.value.trim();
-            if (message) {
-                chatSocket.send(JSON.stringify({ 'message': message, 'user_id': currentUserId }));
+            if (message && chatSocket.readyState === WebSocket.OPEN) {
+                const messageData = {
+                    'message': message, 
+                    'user_id': currentUserId,
+                    'timestamp': new Date().toISOString(),
+                    'timezone': userTimezone,
+                    'type': 'chat_message'
+                };
+                
+                console.log('Sending message:', messageData);
+                chatSocket.send(JSON.stringify(messageData));
                 input.value = '';
+                input.focus();
+            } else if (chatSocket.readyState !== WebSocket.OPEN) {
+                console.error('WebSocket is not open');
+                alert('Connection lost. Please refresh the page.');
             }
         }
 
-        function appendMessage(msg, senderId) {
+        function formatMessageTime(timestamp) {
+            if (!timestamp) {
+                return new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            }
+            
+            try {
+                const date = new Date(timestamp);
+                return date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            } catch (e) {
+                return new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            }
+        }
+
+        function appendMessage(msg, senderId, timestamp) {
+            if (!msg) {
+                console.warn('Empty message received');
+                return;
+            }
+
             const isMe = senderId == currentUserId;
             const align = isMe ? 'justify-end' : 'justify-start';
             const bubbleClass = isMe ? 'msg-me' : 'msg-other';
-            const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            const time = formatMessageTime(timestamp);
 
             const html = `
                 <div class="flex w-full ${align} animate-fade-in-up">
                     <div class="max-w-[75%] px-5 py-3 rounded-2xl shadow-sm text-sm ${bubbleClass}">
-                        <p class="leading-relaxed">${msg}</p>
+                        <p class="leading-relaxed break-words">${escapeHtml(msg)}</p>
                         <span class="text-[10px] opacity-70 block text-right mt-1 font-medium">${time}</span>
                     </div>
                 </div>`;
             
             chatLog.insertAdjacentHTML('beforeend', html);
             scrollToBottom();
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
         }
     </script>
     <style>

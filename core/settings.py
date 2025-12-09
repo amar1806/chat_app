@@ -140,6 +140,9 @@ STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
 
+# Media Files (Uploads)
+MEDIA_URL = '/uploads/'
+MEDIA_ROOT = BASE_DIR / 'uploads'
 
 AUTH_USER_MODEL = 'accounts.CustomUser'
 

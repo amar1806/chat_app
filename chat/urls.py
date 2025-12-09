@@ -25,4 +25,8 @@ urlpatterns = [
     path('start-contact/<int:contact_id>/', views.start_chat_from_contact, name='start_contact'),
     path('start-group-member/<int:target_user_id>/', views.start_chat_from_group_member, name='start_chat_from_group_member'),
     path('add-contact/', views.add_contact, name='add_contact'),
+    path('api/save-contact/', views.save_contact_api, name='save_contact_api'),
+
+    # file upload
+    path('api/upload/', views.upload_attachment, name='upload_attachment'),
 ]

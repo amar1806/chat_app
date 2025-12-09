@@ -31,16 +31,22 @@ class Conversation(models.Model):
 
 class Message(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name="messages")
+    conversation = models.ForeignKey('Conversation', on_delete=models.CASCADE, related_name="messages")
     sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="message_sender")
     text = models.TextField(blank=True)
+    
+    # Media/Files
     attachment = models.FileField(upload_to='uploads/', blank=True, null=True)
-    is_media = models.BooleanField(default=False)
+    is_media = models.BooleanField(default=False) # True if image/video
+    
     timestamp = models.DateTimeField(auto_now_add=True)
     
-    # --- NEW FEATURES (Point 10) ---
+    # Features
     reply_to = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='replies')
     is_forwarded = models.BooleanField(default=False)
+    
+    # Read Status
+    is_read = models.BooleanField(default=False)
 
     class Meta:
         ordering = ('timestamp',)

@@ -175,7 +175,20 @@
             chatSocket = new WebSocket(wsUrl);
             chatSocket.onmessage = function(e) {
                 const data = JSON.parse(e.data);
-                if(typeof appendMessage === 'function') appendMessage(data.message, data.user_id, userId);
+                
+                // Handle regular chat messages
+                if(data.type === 'chat_message' && typeof appendMessage === 'function') {
+                    appendMessage(data.message, data.user_id, userId);
+                }
+                
+                // Handle message deletion
+                else if(data.type === 'message_deleted') {
+                    const msgElement = document.getElementById(`msg-${data.message_id}`);
+                    if (msgElement) {
+                        msgElement.style.opacity = '0.5';
+                        msgElement.innerHTML = '<div class="text-xs text-gray-400 italic px-4 py-2">Message deleted</div>';
+                    }
+                }
             };
         };
         window.sendMessage = function() {

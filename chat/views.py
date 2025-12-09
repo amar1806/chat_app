@@ -5,6 +5,9 @@ from django.contrib.auth import get_user_model
 from django.http import HttpResponseForbidden
 from django.contrib import messages
 from .models import Conversation, Message, Contact
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import json
 
 User = get_user_model()
 
@@ -209,6 +212,41 @@ def start_chat_from_group_member(request, target_user_id):
         chat = Conversation.objects.create(initiator=request.user, receiver=target_user)
     return get_chat_content(request, chat.id)
 
+# --- FILE UPLOAD HANDLER ---
+@login_required
+@csrf_exempt # In production, handle CSRF properly via JS headers
+def upload_attachment(request):
+    if request.method == "POST" and request.FILES.get('file'):
+        file = request.FILES['file']
+        room_id = request.POST.get('room_id')
+        user_id = request.POST.get('user_id')
+        
+        # 1. Save Message directly
+        chat = Conversation.objects.get(id=room_id)
+        sender = User.objects.get(id=user_id)
+        
+        # Check if image
+        is_image = file.content_type.startswith('image')
+        
+        msg = Message.objects.create(
+            conversation=chat,
+            sender=sender,
+            attachment=file,
+            is_media=is_image,
+            text=file.name # Show filename as text fallback
+        )
+        
+        # 2. Return URL to JS so it can send it via WebSocket
+        return JsonResponse({
+            'status': 'ok',
+            'file_url': msg.attachment.url,
+            'is_media': is_image,
+            'message_id': str(msg.id),
+            'filename': file.name
+        })
+    return JsonResponse({'status': 'error'}, status=400)
+
+
 @login_required
 def add_contact(request):
     if request.method == "POST":
@@ -230,6 +268,43 @@ def add_contact(request):
             messages.success(request, "Contact saved.")
         return redirect('chat_dashboard')
     return redirect('chat_dashboard')
+
+@login_required
+def save_contact_api(request):
+    """API endpoint to save a contact from chat view"""
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            contact_user_id = data.get('contact_user_id')
+            contact_name = data.get('contact_name', '').strip()
+            
+            if not contact_user_id or not contact_name:
+                return JsonResponse({'success': False, 'error': 'Missing contact details'}, status=400)
+            
+            try:
+                target_user = User.objects.get(id=contact_user_id)
+            except User.DoesNotExist:
+                return JsonResponse({'success': False, 'error': 'User not found'}, status=404)
+            
+            if target_user == request.user:
+                return JsonResponse({'success': False, 'error': 'Cannot add yourself'}, status=400)
+            
+            # Create or update contact
+            contact, created = Contact.objects.get_or_create(
+                owner=request.user,
+                saved_user=target_user,
+                defaults={'name': contact_name}
+            )
+            
+            if not created:
+                contact.name = contact_name
+                contact.save()
+            
+            return JsonResponse({'success': True, 'message': 'Contact saved successfully'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+    
+    return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
 
 # --- PLACEHOLDERS ---
 @login_required
