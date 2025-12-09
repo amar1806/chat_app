@@ -1,0 +1,106 @@
+<div class="bg-gray-50 h-full w-full overflow-y-auto animate-fade-in relative flex flex-col">
+    
+    <div class="h-16 bg-[#1e1b4b] flex items-center px-4 sticky top-0 z-20 shadow-md flex-shrink-0">
+        <button onclick="closeMobileStage()" class="mr-4 text-white/70 hover:text-white p-2 rounded-full transition md:hidden">
+            <i class="fas fa-arrow-left text-lg"></i>
+        </button>
+        <div>
+            <h1 class="text-lg font-bold text-white">New Chat</h1>
+            <p class="text-xs text-indigo-200">Select a contact</p>
+        </div>
+    </div>
+
+    <div class="p-6 max-w-2xl mx-auto w-full space-y-6">
+
+        <div class="grid grid-cols-3 gap-4">
+            <button onclick="document.getElementById('addContactModal').classList.remove('hidden')" 
+                    class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:bg-indigo-50 transition h-28 flex flex-col items-center justify-center group">
+                <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-lg mb-2 group-hover:scale-110 transition">
+                    <i class="fas fa-user-plus"></i>
+                </div>
+                <span class="text-xs font-bold text-gray-700">Add Contact</span>
+            </button>
+
+            <button class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:bg-indigo-50 transition h-28 flex flex-col items-center justify-center group">
+                <div class="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-lg mb-2 group-hover:scale-110 transition">
+                    <i class="fas fa-users"></i>
+                </div>
+                <span class="text-xs font-bold text-gray-700">New Group</span>
+            </button>
+            
+            <button class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:bg-indigo-50 transition h-28 flex flex-col items-center justify-center group">
+                <div class="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-lg mb-2 group-hover:scale-110 transition">
+                    <i class="fas fa-bullhorn"></i>
+                </div>
+                <span class="text-xs font-bold text-gray-700">New Channel</span>
+            </button>
+        </div>
+
+        <div class="relative">
+            <i class="fas fa-search absolute left-4 top-3.5 text-gray-400"></i>
+            <input type="text" name="search" value="{{ search_query }}" 
+                   placeholder="Search saved contacts..." 
+                   class="w-full pl-10 pr-4 py-3 rounded-xl border-none shadow-sm outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                   autocomplete="off"
+                   hx-get="{% url 'contacts_page' %}" 
+                   hx-target="#main-panel" 
+                   hx-trigger="keyup changed delay:500ms">
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="p-3 bg-gray-50/50 border-b border-gray-100 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                Saved Contacts
+            </div>
+            
+            <div class="divide-y divide-gray-50">
+                {% for contact in contacts %}
+                <div class="flex items-center p-3 hover:bg-gray-50 cursor-pointer transition group"
+                     hx-get="{% url 'start_contact' contact.id %}" 
+                     hx-target="#main-panel">
+                    
+                    <div class="relative mr-4">
+                        <img src="https://ui-avatars.com/api/?name={{ contact.name }}&background=random" class="w-10 h-10 rounded-full object-cover shadow-sm">
+                    </div>
+                    <div class="flex-1">
+                        <h4 class="font-bold text-gray-800 text-sm">{{ contact.name }}</h4>
+                        <p class="text-xs text-gray-400 font-mono">{{ contact.saved_user.mobile }}</p>
+                    </div>
+                    <div class="text-gray-300 group-hover:text-indigo-600 transition">
+                        <i class="fas fa-comment-alt"></i>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="p-8 text-center text-gray-400">
+                    <p class="text-sm">No contacts found.</p>
+                    {% if search_query %}
+                    <p class="text-xs mt-1">Try adding a new contact above.</p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="addContactModal" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl w-80 shadow-2xl p-6 relative animate-fade-in">
+        <button onclick="document.getElementById('addContactModal').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+            <i class="fas fa-times"></i>
+        </button>
+        
+        <h2 class="text-lg font-bold text-gray-800 mb-4">Add Contact</h2>
+        
+        <form action="{% url 'add_contact' %}" method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="contacts_page">
+            
+            <label class="block text-xs font-bold text-gray-500 mb-1">Name</label>
+            <input type="text" name="name" placeholder="Name" required class="w-full bg-gray-50 border border-gray-200 rounded-lg p-2.5 mb-3 text-sm outline-none focus:border-indigo-500">
+
+            <label class="block text-xs font-bold text-gray-500 mb-1">Mobile Number</label>
+            <input type="tel" name="mobile" placeholder="9876543210" required class="w-full bg-gray-50 border border-gray-200 rounded-lg p-2.5 mb-6 text-sm outline-none focus:border-indigo-500">
+
+            <button type="submit" class="w-full py-2.5 text-sm font-bold bg-indigo-600 text-white rounded-lg shadow-lg hover:bg-indigo-700 transition">Save Contact</button>
+        </form>
+    </div>
+</div>

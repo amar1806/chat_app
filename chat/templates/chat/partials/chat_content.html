@@ -1,0 +1,185 @@
+<div class="flex flex-col h-full w-full bg-[#efeae2] relative animate-fade-in">
+    
+    <div class="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-4 z-20 flex-shrink-0">
+        <div class="flex items-center">
+            <button class="md:hidden mr-3 text-gray-600 p-2 -ml-2" onclick="closeMobileStage()">
+                <i class="fas fa-arrow-left text-lg"></i>
+            </button>
+            
+            <div class="flex items-center cursor-pointer"
+                 hx-get="{% url 'get_user_profile' other_user.id %}" 
+                 hx-target="#main-content">
+                <div class="relative">
+                    <img src="https://ui-avatars.com/api/?name={{ display_name }}&background=random" class="w-10 h-10 rounded-full object-cover border border-gray-100">
+                    <div class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></div>
+                </div>
+                <div class="ml-3">
+                    <h2 class="font-bold text-gray-800 text-sm leading-tight">{{ display_name }}</h2>
+                    <p class="text-xs text-green-600">Online</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-1 text-gray-500 relative">
+            {% if not is_contact %}
+            <button onclick="htmx.ajax('GET', '{% url 'add_contact' %}', '#main-content')" 
+                    class="hidden md:flex bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold mr-2 hover:bg-indigo-100 transition">
+                <i class="fas fa-user-plus mr-2"></i> Save
+            </button>
+            {% endif %}
+            
+            <button class="w-10 h-10 hover:bg-gray-50 rounded-full transition"><i class="fas fa-phone-alt text-sm"></i></button>
+            <button class="w-10 h-10 hover:bg-gray-50 rounded-full transition"><i class="fas fa-video text-sm"></i></button>
+            
+            <button class="w-10 h-10 hover:bg-gray-50 rounded-full transition relative" onclick="toggleHeaderMenu()">
+                <i class="fas fa-ellipsis-v text-sm"></i>
+            </button>
+            
+            <div id="header-menu" class="hidden absolute top-12 right-0 bg-white shadow-xl border border-gray-100 rounded-lg w-48 py-2 text-sm text-gray-700 z-50 origin-top-right transition-transform transform scale-95">
+                <div class="px-4 py-2 hover:bg-gray-50 cursor-pointer flex items-center"><i class="fas fa-check-circle w-6 text-gray-400"></i> Select Messages</div>
+                <div class="px-4 py-2 hover:bg-gray-50 cursor-pointer flex items-center"><i class="fas fa-thumbtack w-6 text-gray-400"></i> Pin Chat</div>
+                <div class="px-4 py-2 hover:bg-gray-50 cursor-pointer flex items-center"><i class="fas fa-volume-mute w-6 text-gray-400"></i> Mute</div>
+                <div class="border-t border-gray-100 my-1"></div>
+                <div class="px-4 py-2 hover:bg-red-50 text-red-600 cursor-pointer flex items-center"><i class="fas fa-ban w-6"></i> Block</div>
+                <div class="px-4 py-2 hover:bg-red-50 text-red-600 cursor-pointer flex items-center"><i class="fas fa-trash w-6"></i> Delete Chat</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="chat-scroller" class="flex-1 overflow-y-auto p-4 space-y-1 bg-[#efeae2] bg-opacity-50">
+        <div class="flex justify-center mb-4 mt-2">
+            <span class="bg-gray-200 text-gray-500 text-[10px] px-3 py-1 rounded-full font-bold shadow-sm">TODAY</span>
+        </div>
+
+        {% for message in messages %}
+        <div class="flex w-full {% if message.sender == request.user %}justify-end{% else %}justify-start{% endif %} group relative mb-1">
+            
+            <div class="max-w-[85%] md:max-w-[70%] relative px-3 py-2 rounded-lg text-sm shadow-sm
+                        {% if message.sender == request.user %}bg-[#d9fdd3] rounded-tr-none{% else %}bg-white rounded-tl-none{% endif %}">
+                
+                {% if message.reply_to %}
+                <div class="bg-black/5 border-l-4 border-indigo-500 p-1 mb-1 rounded-[4px] text-xs cursor-pointer hover:bg-black/10 transition"
+                     onclick="scrollToMessage('{{ message.reply_to.id }}')">
+                    <span class="font-bold text-indigo-600 block mb-0.5">
+                        {% if message.reply_to.sender == request.user %}You{% else %}{{ display_name }}{% endif %}
+                    </span>
+                    <p class="truncate text-gray-600 line-clamp-1">{{ message.reply_to.text }}</p>
+                </div>
+                {% endif %}
+
+                <p class="text-gray-800 leading-relaxed whitespace-pre-wrap break-words">{{ message.text }}</p>
+                
+                <div class="flex justify-end items-center space-x-1 mt-1 select-none">
+                    <span class="text-[10px] text-gray-500">{{ message.timestamp|date:"h:i A" }}</span>
+                    {% if message.sender == request.user %}
+                    <i class="fas fa-check-double text-[10px] text-blue-500"></i>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="hidden group-hover:flex items-center absolute top-2 {% if message.sender == request.user %}left-[-60px]{% else %}right-[-60px]{% endif %} space-x-1 bg-white/80 backdrop-blur rounded-lg shadow-sm p-1">
+                <button class="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-indigo-600 rounded hover:bg-indigo-50"
+                        onclick="setReply('{{ message.id }}', '{{ message.text|escapejs }}', '{% if message.sender == request.user %}You{% else %}{{ display_name }}{% endif %}')"
+                        title="Reply">
+                    <i class="fas fa-reply text-xs"></i>
+                </button>
+                <button class="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-indigo-600 rounded hover:bg-indigo-50"
+                        title="Forward">
+                    <i class="fas fa-share text-xs"></i>
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div id="reply-bar" class="hidden bg-gray-50 border-t border-gray-200 p-2 px-4 flex justify-between items-center transition-all">
+        <div class="flex-1 border-l-4 border-indigo-500 pl-3 py-1">
+            <p class="text-xs text-indigo-600 font-bold mb-0.5">Replying to <span id="reply-author">...</span></p>
+            <p id="reply-text" class="text-xs text-gray-500 truncate w-64 line-clamp-1">...</p>
+        </div>
+        <button onclick="cancelReply()" class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 rounded-full hover:bg-gray-100 transition">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+
+    <div class="p-3 bg-white flex items-center space-x-2 border-t border-gray-100 flex-shrink-0">
+        <button class="w-10 h-10 text-gray-400 hover:text-indigo-600 transition rounded-full hover:bg-gray-50">
+            <i class="fas fa-plus text-lg"></i>
+        </button>
+        
+        <div class="flex-1 bg-gray-100 rounded-2xl flex items-center px-4 py-2 focus-within:ring-2 focus-within:ring-indigo-100 transition">
+            <button class="text-gray-400 hover:text-yellow-500 mr-3"><i class="far fa-smile text-lg"></i></button>
+            <input id="chat-input" type="text" class="flex-1 bg-transparent border-none outline-none text-sm text-gray-800 placeholder-gray-500 h-6" 
+                   placeholder="Type a message..." autocomplete="off">
+        </div>
+
+        <button id="send-btn" class="w-12 h-12 bg-indigo-600 rounded-full text-white shadow-lg flex items-center justify-center hover:bg-indigo-700 active:scale-95 transition" onclick="sendMessage()">
+            <i class="fas fa-paper-plane text-sm pl-0.5"></i>
+        </button>
+    </div>
+</div>
+
+<script>
+    // 1. Initialize WebSocket for this Room
+    if(window.initChat) window.initChat("{{ chat.id }}", "{{ request.user.id }}");
+
+    // 2. Save current URL for Back Navigation
+    window.currentChatUrl = "{% url 'get_chat_content' chat.id %}";
+
+    // 3. Reply Logic
+    let replyToId = null;
+
+    function setReply(id, text, author) {
+        replyToId = id;
+        document.getElementById('reply-bar').classList.remove('hidden');
+        document.getElementById('reply-text').innerText = text;
+        document.getElementById('reply-author').innerText = author;
+        document.getElementById('chat-input').focus();
+    }
+
+    function cancelReply() {
+        replyToId = null;
+        document.getElementById('reply-bar').classList.add('hidden');
+    }
+
+    // 4. Kebab Menu Logic
+    function toggleHeaderMenu() {
+        const menu = document.getElementById('header-menu');
+        menu.classList.toggle('hidden');
+        
+        // Click outside to close
+        if (!menu.classList.contains('hidden')) {
+            setTimeout(() => {
+                document.addEventListener('click', closeMenuOutside);
+            }, 100);
+        }
+    }
+
+    function closeMenuOutside(e) {
+        const menu = document.getElementById('header-menu');
+        if (!menu.contains(e.target)) {
+            menu.classList.add('hidden');
+            document.removeEventListener('click', closeMenuOutside);
+        }
+    }
+
+    // 5. Override Send to include Reply ID
+    window.sendMessage = function() {
+        const input = document.getElementById('chat-input');
+        const message = input.value.trim();
+        
+        if (message && chatSocket) {
+            chatSocket.send(JSON.stringify({ 
+                'message': message, 
+                'user_id': "{{ request.user.id }}",
+                'reply_to': replyToId
+            }));
+            input.value = '';
+            cancelReply();
+        }
+    };
+    
+    // 6. Scroll to bottom
+    var scroller = document.getElementById('chat-scroller');
+    scroller.scrollTop = scroller.scrollHeight;
+</script>

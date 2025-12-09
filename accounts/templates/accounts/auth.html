@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2P Connect</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f0f2f5; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .auth-card { max-width: 400px; margin: 50px auto; border-radius: 15px; overflow: hidden; }
+        .hidden { display: none !important; }
+        .btn-brand { background-color: #00a884; color: white; font-weight: 600; }
+        .btn-brand:hover { background-color: #008f6f; color: white; }
+        
+        /* Red Border & Shake Animation for Error */
+        .is-invalid { border-color: #dc3545 !important; background-image: none !important; }
+        .shake { animation: shake 0.3s; }
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+            100% { transform: translateX(0); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card shadow-lg auth-card border-0">
+        <div class="card-body p-4">
+            
+            <div class="text-center mb-4">
+                <h3 class="fw-bold text-secondary">P2P Connect</h3>
+                <p class="text-muted small">Secure & Private Chat</p>
+            </div>
+
+            <div id="error-box" class="alert alert-danger p-2 small hidden"></div>
+            <div id="success-box" class="alert alert-success p-2 small hidden"></div>
+
+            <div id="step-initial">
+                <ul class="nav nav-pills nav-fill mb-3">
+                    <li class="nav-item"><button class="nav-link active" id="tab-login" onclick="switchMode('login')">Login</button></li>
+                    <li class="nav-item"><button class="nav-link" id="tab-signup" onclick="switchMode('signup')">Sign Up</button></li>
+                </ul>
+
+                <div id="form-login">
+                    <div class="mb-3">
+                        <label class="form-label small">Mobile Number</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light">+91</span>
+                            <input type="tel" id="login-mobile" class="form-control" placeholder="9876543210" 
+                                   maxlength="10" onkeydown="handleEnter(event, this, null, 'login')">
+                        </div>
+                    </div>
+                    <button class="btn btn-brand w-100" onclick="initiateOtp('login')">Send OTP</button>
+                </div>
+
+                <div id="form-signup" class="hidden">
+                    <div class="row g-2 mb-2">
+                        <div class="col">
+                            <input type="text" id="su-fname" class="form-control" placeholder="First Name"
+                                   onkeydown="handleEnter(event, this, 'su-lname')">
+                        </div>
+                        <div class="col">
+                            <input type="text" id="su-lname" class="form-control" placeholder="Last Name"
+                                   onkeydown="handleEnter(event, this, 'su-email')">
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <input type="email" id="su-email" class="form-control" placeholder="Email Address"
+                               onkeydown="handleEnter(event, this, 'su-mobile')">
+                    </div>
+                    <div class="mb-3">
+                        <div class="input-group">
+                            <span class="input-group-text bg-light">+91</span>
+                            <input type="tel" id="su-mobile" class="form-control" placeholder="Mobile Number" maxlength="10"
+                                   onkeydown="handleEnter(event, this, null, 'signup')">
+                        </div>
+                    </div>
+                    <button class="btn btn-brand w-100" onclick="initiateOtp('signup')">Create Account</button>
+                </div>
+            </div>
+
+            <div id="step-otp" class="hidden text-center">
+                <p class="text-muted mb-2">Enter code from Console</p>
+                <input type="text" id="otp-input" class="form-control text-center text-primary fw-bold fs-4 mb-3" 
+                       placeholder="------" maxlength="6"
+                       onkeydown="if(event.key === 'Enter') verifyOtp()">
+                
+                <button class="btn btn-brand w-100 mb-3" onclick="verifyOtp()">Verify Code</button>
+                <div class="d-flex justify-content-between align-items-center">
+                    <button class="btn btn-link text-decoration-none btn-sm text-secondary" onclick="location.reload()">Change Number</button>
+                    <span id="timer-text" class="text-muted small">Resend in 30s</span>
+                </div>
+            </div>
+
+            <div id="step-profile" class="hidden">
+                <p class="text-muted text-center mb-3">One last step!</p>
+                <div class="mb-3">
+                    <label class="form-label small">Username</label>
+                    <div class="input-group">
+                        <span class="input-group-text">@</span>
+                        <input type="text" id="final-username" class="form-control" placeholder="username"
+                               onkeydown="handleEnter(event, this, 'final-dob')">
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small">Date of Birth</label>
+                    <input type="date" id="final-dob" class="form-control"
+                           onkeydown="handleEnter(event, this, null, 'finish')">
+                </div>
+                <button class="btn btn-brand w-100" onclick="finishSignup()">Start Chatting</button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentMode = 'login';
+    let timerInterval;
+
+    // --- NEW: Handle Enter Key & Validation ---
+    function handleEnter(e, currentField, nextFieldId, finalAction = null) {
+        if (e.key === 'Enter') {
+            e.preventDefault(); // Stop default form submit
+            
+            // 1. Validate Current Field
+            if (currentField.value.trim() === "") {
+                currentField.classList.add('is-invalid', 'shake'); // Add Red Border & Shake
+                currentField.focus(); // Keep focus here
+                
+                // Remove shake after animation so it can shake again next time
+                setTimeout(() => currentField.classList.remove('shake'), 300);
+                return; 
+            } else {
+                currentField.classList.remove('is-invalid'); // Remove Red Border
+            }
+
+            // 2. Move to Next Field OR Submit
+            if (nextFieldId) {
+                document.getElementById(nextFieldId).focus();
+            } else if (finalAction) {
+                if (finalAction === 'login' || finalAction === 'signup') initiateOtp(finalAction);
+                if (finalAction === 'finish') finishSignup();
+            }
+        }
+    }
+
+    // Remove red border when user starts typing
+    document.querySelectorAll('input').forEach(input => {
+        input.addEventListener('input', function() {
+            this.classList.remove('is-invalid');
+        });
+    });
+
+    // --- EXISTING LOGIC BELOW ---
+    
+    function startResendTimer() {
+        let timeLeft = 30;
+        const timerText = document.getElementById('timer-text');
+        timerText.classList.remove('hidden');
+        timerText.innerText = `Resend in ${timeLeft}s`;
+        clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            timerText.innerText = `Resend in ${timeLeft}s`;
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                timerText.innerText = "Resend Available (Reload)"; // Simplified for now
+            }
+        }, 1000);
+    }
+
+    function switchMode(mode) {
+        currentMode = mode;
+        document.getElementById('error-box').classList.add('hidden');
+        if(mode === 'login') {
+            document.getElementById('form-login').classList.remove('hidden');
+            document.getElementById('form-signup').classList.add('hidden');
+            document.getElementById('tab-login').classList.add('active');
+            document.getElementById('tab-signup').classList.remove('active');
+        } else {
+            document.getElementById('form-login').classList.add('hidden');
+            document.getElementById('form-signup').classList.remove('hidden');
+            document.getElementById('tab-login').classList.remove('active');
+            document.getElementById('tab-signup').classList.add('active');
+        }
+    }
+
+    async function initiateOtp(action) {
+        let data = { action: action };
+        
+        if (action === 'login') {
+            data.mobile = document.getElementById('login-mobile').value;
+        } else {
+            data.mobile = document.getElementById('su-mobile').value;
+            data.email = document.getElementById('su-email').value;
+            data.first_name = document.getElementById('su-fname').value;
+            data.last_name = document.getElementById('su-lname').value;
+        }
+
+        if(!data.mobile || data.mobile.length < 10) { 
+            // Manual Trigger Red Border for Mobile
+            let mobField = action === 'login' ? document.getElementById('login-mobile') : document.getElementById('su-mobile');
+            mobField.classList.add('is-invalid', 'shake');
+            setTimeout(() => mobField.classList.remove('shake'), 300);
+            return; 
+        }
+
+        await postData('/auth/api/send-otp/', data, (res) => {
+            if(res.success) {
+                document.getElementById('step-initial').classList.add('hidden');
+                document.getElementById('step-otp').classList.remove('hidden');
+                document.getElementById('success-box').innerText = "OTP sent to Console!";
+                document.getElementById('success-box').classList.remove('hidden');
+                startResendTimer();
+            } else {
+                showError(res.message);
+            }
+        });
+    }
+
+    async function verifyOtp() {
+        let otp = document.getElementById('otp-input').value;
+        if (otp.length !== 6) { showError("Enter 6 digits"); return; }
+
+        await postData('/auth/api/verify-otp/', {otp: otp}, (res) => {
+            if(res.success) {
+                if (currentMode === 'login') {
+                    postData('/auth/api/login-user/', {}, (loginRes) => {
+                        if(loginRes.success) window.location.href = '/chat/';
+                    });
+                } else {
+                    document.getElementById('step-otp').classList.add('hidden');
+                    document.getElementById('step-profile').classList.remove('hidden');
+                    document.getElementById('success-box').classList.add('hidden');
+                }
+            } else {
+                showError(res.message);
+            }
+        });
+    }
+
+    async function finishSignup() {
+        let userField = document.getElementById('final-username');
+        let dobField = document.getElementById('final-dob');
+        
+        if(!userField.value) { userField.classList.add('is-invalid'); return; }
+        if(!dobField.value) { dobField.classList.add('is-invalid'); return; }
+
+        let data = {
+            username: userField.value,
+            dob: dobField.value
+        };
+        await postData('/auth/api/create-user/', data, (res) => {
+            if(res.success) window.location.href = '/chat/';
+            else showError(res.message);
+        });
+    }
+
+    async function postData(url, data, callback) {
+        const csrftoken = getCookie('csrftoken');
+        try {
+            let response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+                body: JSON.stringify(data)
+            });
+            let result = await response.json();
+            callback(result);
+        } catch (error) { console.error('Error:', error); }
+    }
+
+    function showError(msg) {
+        let box = document.getElementById('error-box');
+        box.innerText = msg;
+        box.classList.remove('hidden');
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>
+
+</body>
+</html>

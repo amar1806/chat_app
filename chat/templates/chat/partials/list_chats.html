@@ -1,0 +1,23 @@
+<div class="space-y-1 pb-20">
+    {% for chat in chat_list %}
+    <div class="flex items-center p-3 rounded-xl hover:bg-gray-50 cursor-pointer transition relative group border-l-4 border-transparent"
+         onclick="htmx.ajax('GET', '{% url 'get_chat_content' chat.id %}', '#main-panel'); openMobileStage();">
+        
+        <div class="relative mr-3 flex-shrink-0">
+            <img src="https://ui-avatars.com/api/?name={{ chat.display_name }}&background=random" class="w-12 h-12 rounded-full object-cover shadow-sm">
+        </div>
+        <div class="flex-1 min-w-0">
+            <div class="flex justify-between items-baseline mb-0.5">
+                <h4 class="font-bold text-gray-800 text-sm truncate">{{ chat.display_name }}</h4>
+                <span class="text-[10px] text-gray-400 font-medium whitespace-nowrap ml-2">{{ chat.timestamp|date:"H:i" }}</span>
+            </div>
+            <p class="text-xs text-gray-500 truncate group-hover:text-gray-600">{{ chat.preview }}</p>
+        </div>
+    </div>
+    {% empty %}
+    <div class="p-8 text-center text-gray-400 mt-4">
+        <i class="far fa-comments text-3xl mb-2 opacity-50"></i>
+        <p class="text-sm">No chats yet.</p>
+    </div>
+    {% endfor %}
+</div>

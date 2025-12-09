@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        
+        /* Modern Gradient Background */
+        body { background: #f8fafc; }
+        
+        /* My Message Bubble Gradient */
+        .msg-me {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        
+        /* Other Message Bubble */
+        .msg-other {
+            background: #ffffff;
+            color: #1e293b;
+            border: 1px solid #e2e8f0;
+            border-bottom-left-radius: 4px;
+        }
+
+        /* Call Pulse Animation */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            100% { transform: scale(1.5); opacity: 0; }
+        }
+        .animate-pulse-slow { animation: pulse-ring 3s infinite; }
+        
+        /* Glass Blur for Call Overlay */
+        .glass-overlay {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(16px);
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col max-w-md mx-auto shadow-2xl relative overflow-hidden bg-slate-50">
+
+    <header class="absolute top-0 left-0 right-0 z-20 px-4 py-3">
+        <div class="bg-white/90 backdrop-blur-md shadow-sm border border-white/50 rounded-2xl p-2 flex items-center justify-between">
+            <div class="flex items-center">
+                <a href="{% url 'chat_home' %}" class="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-100 transition text-slate-600">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+                <div class="ml-2">
+                    <h1 class="font-bold text-slate-800 text-sm leading-tight">{{ other_user.username }}</h1>
+                    <div class="flex items-center mt-0.5">
+                        <span class="w-2 h-2 bg-green-500 rounded-full mr-1.5"></span>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Active Now</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex space-x-1">
+                <button onclick="startCall('video')" class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition flex items-center justify-center">
+                    <i class="fas fa-video text-sm"></i>
+                </button>
+                <button onclick="startCall('audio')" class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition flex items-center justify-center">
+                    <i class="fas fa-phone text-sm"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div id="call-overlay" class="hidden fixed inset-0 z-50 glass-overlay flex flex-col items-center justify-center text-white transition-opacity duration-300">
+        <div class="absolute top-0 w-full h-1/2 bg-gradient-to-b from-indigo-500/20 to-transparent"></div>
+        
+        <div class="relative z-10 flex flex-col items-center">
+            <div class="relative">
+                <div class="absolute inset-0 bg-indigo-500 rounded-full animate-pulse-slow blur-xl"></div>
+                <div class="w-32 h-32 rounded-full bg-slate-800 border-4 border-indigo-500/30 flex items-center justify-center text-4xl font-bold shadow-2xl relative z-10">
+                    {{ other_user.username|slice:":1"|upper }}
+                </div>
+            </div>
+            
+            <h2 class="mt-8 text-2xl font-bold tracking-tight">{{ other_user.username }}</h2>
+            <p id="call-status" class="text-indigo-200 mt-2 font-medium animate-pulse">Connecting secure line...</p>
+        </div>
+
+        <div class="absolute bottom-12 w-full flex justify-center space-x-6 z-10">
+            <button class="w-16 h-16 rounded-full bg-slate-700/50 backdrop-blur text-white flex items-center justify-center hover:bg-slate-600 transition">
+                <i class="fas fa-microphone-slash"></i>
+            </button>
+            <button onclick="endCall()" class="w-20 h-20 rounded-full bg-red-500 text-white flex items-center justify-center shadow-red-500/50 shadow-lg active:scale-90 transition">
+                <i class="fas fa-phone-slash text-2xl"></i>
+            </button>
+        </div>
+    </div>
+
+    <main id="chat-log" class="flex-1 overflow-y-auto p-4 pt-24 pb-4 space-y-4 no-scrollbar">
+        {% for message in messages %}
+            <div class="flex w-full {% if message.sender == request.user %}justify-end{% else %}justify-start{% endif %}">
+                <div class="max-w-[75%] px-5 py-3 rounded-2xl shadow-sm text-sm 
+                    {% if message.sender == request.user %}msg-me{% else %}msg-other{% endif %}">
+                    <p class="leading-relaxed">{{ message.text }}</p>
+                    <span class="text-[10px] opacity-70 block text-right mt-1 font-medium">{{ message.timestamp|date:"H:i" }}</span>
+                </div>
+            </div>
+        {% endfor %}
+    </main>
+
+    <div class="p-4 bg-transparent z-10">
+        <div class="bg-white p-2 rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 flex items-center">
+            <button class="w-10 h-10 rounded-full bg-slate-50 text-slate-400 hover:text-indigo-500 transition flex-shrink-0 flex items-center justify-center">
+                <i class="fas fa-plus"></i>
+            </button>
+            
+            <input id="chat-input" type="text" class="flex-1 bg-transparent px-3 outline-none text-slate-700 placeholder-slate-400 text-sm font-medium h-10" placeholder="Type a message..." autocomplete="off">
+            
+            <button id="send-btn" class="w-10 h-10 rounded-full bg-indigo-600 text-white shadow-lg shadow-indigo-200 flex items-center justify-center active:scale-90 transition flex-shrink-0">
+                <i class="fas fa-paper-plane text-xs"></i>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const roomId = "{{ chat.id }}";
+        const currentUserId = "{{ request.user.id }}";
+        const chatLog = document.getElementById('chat-log');
+        
+        function scrollToBottom() { 
+            chatLog.scrollTop = chatLog.scrollHeight; 
+        }
+        scrollToBottom();
+
+        const wsUrl = `ws://${window.location.host}/ws/chat/${roomId}/`;
+        const chatSocket = new WebSocket(wsUrl);
+
+        chatSocket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            appendMessage(data.message, data.user_id);
+        };
+
+        function startCall(type) {
+            document.getElementById('call-overlay').classList.remove('hidden');
+            document.getElementById('call-status').innerText = type === 'video' ? "Requesting Video..." : "Calling Mobile...";
+        }
+
+        function endCall() {
+            document.getElementById('call-overlay').classList.add('hidden');
+        }
+
+        document.getElementById('send-btn').onclick = sendMessage;
+        document.getElementById('chat-input').onkeyup = function(e) { if (e.key === 'Enter') sendMessage(); };
+
+        function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (message) {
+                chatSocket.send(JSON.stringify({ 'message': message, 'user_id': currentUserId }));
+                input.value = '';
+            }
+        }
+
+        function appendMessage(msg, senderId) {
+            const isMe = senderId == currentUserId;
+            const align = isMe ? 'justify-end' : 'justify-start';
+            const bubbleClass = isMe ? 'msg-me' : 'msg-other';
+            const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+            const html = `
+                <div class="flex w-full ${align} animate-fade-in-up">
+                    <div class="max-w-[75%] px-5 py-3 rounded-2xl shadow-sm text-sm ${bubbleClass}">
+                        <p class="leading-relaxed">${msg}</p>
+                        <span class="text-[10px] opacity-70 block text-right mt-1 font-medium">${time}</span>
+                    </div>
+                </div>`;
+            
+            chatLog.insertAdjacentHTML('beforeend', html);
+            scrollToBottom();
+        }
+    </script>
+    <style>
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-up { animation: fadeInUp 0.3s ease-out forwards; }
+    </style>
+</body>
+</html>
