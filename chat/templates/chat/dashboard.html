@@ -198,11 +198,11 @@
                 </button>
             </div>
 
-            <!-- Profile/Menu Button -->
-            <button class="nav-btn hover:bg-red-500/20" 
-                    onclick="openMobileDrawer()"
-                    title="Menu">
-                <i class="fas fa-ellipsis-v"></i>
+            <!-- Profile Button -->
+            <button class="nav-btn hover:bg-blue-500/20" 
+                    onclick="openProfileModal()"
+                    title="Profile">
+                <i class="fas fa-user-circle"></i>
             </button>
         </nav>
 
@@ -219,20 +219,9 @@
                         </div>
                         <!-- Mobile Hamburger -->
                         <button class="md:hidden p-2 hover:bg-gray-100 rounded-lg transition"
-                                onclick="openMobileDrawer()">
-                            <i class="fas fa-bars text-gray-700 text-lg"></i>
+                                onclick="toggleSearch()">
+                            <i class="fas fa-search text-gray-700 text-lg"></i>
                         </button>
-                        <!-- Desktop Menu Button -->
-                        <div class="hidden md:flex gap-2">
-                            <button class="p-2 hover:bg-gray-100 rounded-lg transition text-gray-600"
-                                    onclick="toggleSearch()">
-                                <i class="fas fa-search"></i>
-                            </button>
-                            <button class="p-2 hover:bg-gray-100 rounded-lg transition text-gray-600"
-                                    onclick="openMobileDrawer()">
-                                <i class="fas fa-ellipsis-h"></i>
-                            </button>
-                        </div>
                     </div>
 
                     <!-- Search Box -->
@@ -301,7 +290,57 @@
             </div>
         </main>
 
-        <!-- MOBILE DRAWER MENU -->
+        <!-- PROFILE MODAL -->
+        <div id="profile-modal" class="fixed inset-0 z-[150] bg-black/50 hidden" onclick="closeProfileModal()">
+            <div class="absolute right-0 top-0 h-full w-80 bg-white shadow-2xl flex flex-col animate-slide-in" onclick="event.stopPropagation()">
+                <!-- User Profile Section -->
+                <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 space-y-3">
+                    <div class="w-16 h-16 rounded-full border-3 border-white/30 overflow-hidden">
+                        <img src="https://ui-avatars.com/api/?name={{ request.user.username }}&background=random" 
+                             class="w-full h-full object-cover">
+                    </div>
+                    <div>
+                        <h2 class="font-bold text-lg">{{ request.user.first_name|default:request.user.username }}</h2>
+                        <p class="text-blue-100 text-sm">{{ request.user.mobile }}</p>
+                    </div>
+                </div>
+
+                <!-- Menu Items -->
+                <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
+                    <button onclick="closeProfileModal(); htmx.ajax('GET', '{% url 'settings_page' %}', '#main-panel'); openMobileStage()" 
+                            class="w-full text-left p-4 rounded-lg hover:bg-blue-50 flex items-center gap-3 transition text-gray-700 md:justify-start">
+                        <i class="fas fa-cog w-5 text-blue-600"></i>
+                        <span class="font-medium">Settings</span>
+                    </button>
+                    <button onclick="closeProfileModal(); htmx.ajax('GET', '{% url 'contacts_page' %}', '#main-panel'); openMobileStage()" 
+                            class="w-full text-left p-4 rounded-lg hover:bg-blue-50 flex items-center gap-3 transition text-gray-700 md:justify-start">
+                        <i class="fas fa-users w-5 text-blue-600"></i>
+                        <span class="font-medium">Contacts</span>
+                    </button>
+                    <button class="w-full text-left p-4 rounded-lg hover:bg-gray-50 flex items-center gap-3 transition text-gray-700 md:justify-start">
+                        <i class="fas fa-bell w-5 text-amber-600"></i>
+                        <span class="font-medium">Notifications</span>
+                    </button>
+                    <button class="w-full text-left p-4 rounded-lg hover:bg-gray-50 flex items-center gap-3 transition text-gray-700 md:justify-start">
+                        <i class="fas fa-lock w-5 text-green-600"></i>
+                        <span class="font-medium">Privacy</span>
+                    </button>
+                </nav>
+
+                <!-- Divider -->
+                <div class="border-t border-gray-200"></div>
+
+                <!-- Logout Button -->
+                <div class="p-4">
+                    <button class="w-full py-3 bg-red-500/10 text-red-600 rounded-lg hover:bg-red-500/20 transition font-medium flex items-center justify-center gap-2">
+                        <i class="fas fa-sign-out-alt"></i>
+                        Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MOBILE DRAWER MENU (Legacy - kept for backward compatibility) -->
         <div id="mobile-drawer" class="fixed inset-0 z-[150] bg-black/50 hidden md:hidden" onclick="closeMobileDrawer()">
             <div class="w-72 h-full bg-white shadow-2xl flex flex-col animate-slide-in" onclick="event.stopPropagation()">
                 <!-- User Profile Section -->
@@ -359,6 +398,12 @@
         }
         function closeMobileStage() { 
             document.body.classList.remove('chat-open'); 
+        }
+        function openProfileModal() {
+            document.getElementById('profile-modal').classList.remove('hidden');
+        }
+        function closeProfileModal() {
+            document.getElementById('profile-modal').classList.add('hidden');
         }
         function openMobileDrawer() {
             document.getElementById('mobile-drawer').classList.remove('hidden');

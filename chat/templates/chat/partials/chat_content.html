@@ -1,32 +1,32 @@
 <div class="flex flex-col h-full w-full bg-[#efeae2] relative animate-fade-in group font-sans" onclick="handleGlobalClick(event)">
     
-    <div class="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-6 z-20 flex-shrink-0 shadow-sm">
-        <div class="flex items-center">
-            <button class="md:hidden mr-4 text-gray-600 hover:bg-gray-100 p-2 rounded-full transition" onclick="closeMobileStage()">
+    <div class="h-14 md:h-16 bg-white border-b border-gray-100 flex items-center justify-between px-3 md:px-6 z-20 flex-shrink-0 shadow-sm">
+        <div class="flex items-center min-w-0 flex-1">
+            <button class="md:hidden mr-3 text-gray-600 hover:bg-gray-100 p-2 rounded-full transition flex-shrink-0" onclick="closeMobileStage()">
                 <i class="fas fa-arrow-left text-lg"></i>
             </button>
-            <div class="flex items-center cursor-pointer" hx-get="{% url 'get_user_profile' other_user.id %}" hx-target="#main-panel">
-                <div class="relative">
+            <div class="flex items-center cursor-pointer min-w-0 flex-1" hx-get="{% url 'get_user_profile' other_user.id %}" hx-target="#main-panel">
+                <div class="relative flex-shrink-0">
                     <img src="https://ui-avatars.com/api/?name={{ display_name }}&background=random" class="w-10 h-10 rounded-full border border-gray-100 object-cover">
                     <div class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></div>
                 </div>
-                <div class="ml-3">
-                    <h2 class="font-bold text-gray-800 text-sm">{{ display_name }}</h2>
+                <div class="ml-3 min-w-0 flex-1">
+                    <h2 class="font-bold text-gray-800 text-sm truncate">{{ display_name }}</h2>
                     <p class="text-xs text-green-600 font-medium">Online</p>
                 </div>
             </div>
         </div>
 
-        <div class="flex items-center space-x-2 text-gray-500 relative">
+        <div class="flex items-center space-x-1 md:space-x-2 text-gray-500 relative flex-shrink-0">
             {% if not is_contact %}
             <button onclick="document.getElementById('save-contact-modal').classList.remove('hidden')" 
-                    class="flex items-center bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold mr-2 hover:bg-indigo-100 transition shadow-sm border border-indigo-100">
+                    class="hidden md:flex items-center bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100 transition shadow-sm border border-indigo-100">
                 <i class="fas fa-user-plus mr-2"></i> Save
             </button>
             {% endif %}
-            <button onclick="startAudioCall('{{ other_user.id }}', '{{ other_user.username }}')" class="w-10 h-10 hover:bg-gray-50 rounded-full transition flex items-center justify-center text-indigo-600" title="Audio Call"><i class="fas fa-phone-alt"></i></button>
-            <button onclick="startVideoCall('{{ other_user.id }}', '{{ other_user.username }}')" class="w-10 h-10 hover:bg-gray-50 rounded-full transition flex items-center justify-center text-indigo-600" title="Video Call"><i class="fas fa-video"></i></button>
-            <button id="header-menu-btn" class="w-10 h-10 hover:bg-gray-50 rounded-full transition flex items-center justify-center" onclick="toggleMenu('header-menu')"><i class="fas fa-ellipsis-v"></i></button>
+            <button onclick="startAudioCall('{{ other_user.id }}', '{{ other_user.username }}')" class="w-9 h-9 md:w-10 md:h-10 hover:bg-gray-50 rounded-full transition flex items-center justify-center text-indigo-600 flex-shrink-0" title="Audio Call"><i class="fas fa-phone-alt text-sm md:text-base"></i></button>
+            <button onclick="startVideoCall('{{ other_user.id }}', '{{ other_user.username }}')" class="w-9 h-9 md:w-10 md:h-10 hover:bg-gray-50 rounded-full transition flex items-center justify-center text-indigo-600 flex-shrink-0" title="Video Call"><i class="fas fa-video text-sm md:text-base"></i></button>
+            <button id="header-menu-btn" class="w-9 h-9 md:w-10 md:h-10 hover:bg-gray-50 rounded-full transition flex items-center justify-center flex-shrink-0" onclick="toggleMenu('header-menu')"><i class="fas fa-ellipsis-v text-sm"></i></button>
             <div id="header-menu" class="hidden absolute top-12 right-0 bg-white shadow-xl rounded-xl w-48 py-2 text-sm z-50 border border-gray-100 text-left animate-fade-in popup-menu">
                 <div class="px-4 py-2 hover:bg-gray-50 cursor-pointer flex items-center"><i class="fas fa-search w-6 text-gray-400"></i> Search</div>
                 <div class="px-4 py-2 hover:bg-gray-50 cursor-pointer flex items-center"><i class="fas fa-volume-mute w-6 text-gray-400"></i> Mute</div>
@@ -36,7 +36,7 @@
         </div>
     </div>
 
-    <div id="chat-scroller" class="flex-1 overflow-y-auto px-4 md:px-20 py-6 space-y-3 bg-[#efeae2] bg-opacity-50 scroll-smooth">
+    <div id="chat-scroller" class="flex-1 overflow-y-auto px-3 md:px-20 py-4 md:py-6 space-y-3 bg-[#efeae2] bg-opacity-50 scroll-smooth">
         <div class="flex justify-center mb-6">
             <span class="bg-gray-200 text-gray-500 text-[10px] px-3 py-1 rounded-full font-bold shadow-sm uppercase tracking-wide">Today</span>
         </div>
@@ -62,7 +62,7 @@
                 <i class="fas fa-reply text-sm"></i>
             </div>
             
-            <div class="max-w-[75%] md:max-w-[60%] relative px-4 py-2 rounded-2xl text-sm shadow-sm border border-transparent transition-all duration-200 select-none
+            <div class="max-w-[85%] md:max-w-[60%] relative px-3 md:px-4 py-2 rounded-2xl text-xs md:text-sm shadow-sm border border-transparent transition-all duration-200 select-none
                         {% if message.sender == request.user %}bg-[#d9fdd3] rounded-tr-none border-green-100{% else %}bg-white rounded-tl-none border-gray-100{% endif %}"
                  style="cursor: grab;">
                 {% if message.reply_to %}
@@ -93,17 +93,18 @@
         {% endfor %}
     </div>
 
-    <div id="reply-bar" class="hidden bg-gray-50 border-t p-2 px-6 flex justify-between items-center animate-fade-in">
-        <div class="flex-1 border-l-4 border-indigo-500 pl-3">
+    <div id="reply-bar" class="hidden bg-gray-50 border-t p-2 px-3 md:px-6 flex justify-between items-center animate-fade-in">
+        <div class="flex-1 border-l-4 border-indigo-500 pl-3 min-w-0">
             <span class="text-xs text-indigo-600 font-bold">Replying to...</span>
-            <p id="reply-text" class="text-xs text-gray-500 truncate max-w-md">...</p>
+            <p id="reply-text" class="text-xs text-gray-500 truncate">...</p>
         </div>
-        <button onclick="cancelReply()" class="w-8 h-8 rounded-full hover:bg-gray-200 flex items-center justify-center text-gray-500"><i class="fas fa-times"></i></button>
+        <button onclick="cancelReply()" class="w-8 h-8 rounded-full hover:bg-gray-200 flex items-center justify-center text-gray-500 flex-shrink-0"><i class="fas fa-times"></i></button>
     </div>
 
-    <div class="p-3 bg-white border-t border-gray-100 flex items-end space-x-3 z-30 px-4 md:px-6">
-        <div class="relative">
-            <button id="attach-btn" type="button" onclick="toggleMenu('attach-menu')" class="w-10 h-10 text-gray-500 hover:text-indigo-600 hover:bg-gray-100 rounded-full transition flex items-center justify-center text-xl"><i class="fas fa-plus"></i></button>
+    <div class="p-3 bg-white border-t border-gray-100 flex items-end space-x-2 md:space-x-3 z-30 px-3 md:px-6 gap-2">
+        <!-- Attach Button -->
+        <div class="relative hidden md:block">
+            <button id="attach-btn" type="button" onclick="toggleMenu('attach-menu')" class="w-10 h-10 text-gray-500 hover:text-indigo-600 hover:bg-gray-100 rounded-full transition flex items-center justify-center text-xl flex-shrink-0"><i class="fas fa-plus"></i></button>
             <div id="attach-menu" class="hidden absolute bottom-14 left-0 bg-white shadow-xl rounded-2xl border border-gray-100 p-3 flex flex-col gap-3 animate-fade-in w-40 popup-menu">
                 <button onclick="document.getElementById('file-input').click()" class="flex items-center space-x-3 text-gray-600 hover:text-indigo-600 transition p-1"><i class="fas fa-image text-purple-600"></i><span class="text-sm font-medium">Gallery</span></button>
                 <button onclick="document.getElementById('audio-input').click()" class="flex items-center space-x-3 text-gray-600 hover:text-indigo-600 transition p-1"><i class="fas fa-music text-red-600"></i><span class="text-sm font-medium">Audio</span></button>
@@ -113,19 +114,32 @@
                 <button class="flex items-center space-x-3 text-gray-600 hover:text-indigo-600 transition p-1"><i class="fas fa-map-marker-alt text-green-600"></i><span class="text-sm font-medium">Location</span></button>
             </div>
         </div>
+
+        <!-- Mobile Action Icons -->
+        <div class="md:hidden flex items-center gap-1 flex-shrink-0">
+            <button onclick="document.getElementById('file-input').click()" class="w-9 h-9 text-gray-500 hover:text-indigo-600 hover:bg-gray-100 rounded-full transition flex items-center justify-center"><i class="fas fa-image"></i></button>
+            <button onclick="startCamera()" class="w-9 h-9 text-gray-500 hover:text-indigo-600 hover:bg-gray-100 rounded-full transition flex items-center justify-center"><i class="fas fa-camera"></i></button>
+        </div>
+
         <input type="file" id="file-input" hidden onchange="uploadFile(this)">
         <input type="file" id="audio-input" hidden accept="audio/*" onchange="uploadFile(this)">
 
-        <div class="flex-1 bg-gray-100 rounded-3xl flex items-center px-2 py-1 transition focus-within:ring-2 focus-within:ring-indigo-100 border border-transparent focus-within:border-indigo-200 relative">
-            <button id="emoji-trigger" type="button" class="w-9 h-9 text-gray-400 hover:text-yellow-500 rounded-full hover:bg-gray-200/50 flex items-center justify-center transition flex-shrink-0"><i class="far fa-smile text-xl"></i></button>
-            <textarea id="chat-input" rows="1" class="flex-1 bg-transparent border-none outline-none px-2 text-sm text-gray-800 placeholder-gray-500 resize-none py-3" placeholder="Type a message..." style="min-height: 44px; max-height: 120px;"></textarea>
-            <div class="flex items-center space-x-1 pr-1">
-                <button type="button" onclick="startCamera()" class="w-8 h-8 text-gray-400 hover:text-indigo-600 hover:bg-white rounded-full transition flex items-center justify-center"><i class="fas fa-camera"></i></button>
+        <!-- Message Input -->
+        <div class="flex-1 bg-gray-100 rounded-3xl flex items-center px-2 py-1 transition focus-within:ring-2 focus-within:ring-indigo-100 border border-transparent focus-within:border-indigo-200 relative min-h-11">
+            <button id="emoji-trigger" type="button" class="w-8 h-8 md:w-9 md:h-9 text-gray-400 hover:text-yellow-500 rounded-full hover:bg-gray-200/50 flex items-center justify-center transition flex-shrink-0"><i class="far fa-smile text-lg"></i></button>
+            <textarea id="chat-input" 
+                      rows="1" 
+                      class="flex-1 bg-transparent border-none outline-none px-2 text-sm text-gray-800 placeholder-gray-500 resize-none py-2 md:py-3" 
+                      placeholder="Type a message..." 
+                      style="min-height: 40px; max-height: 120px;"></textarea>
+            <div class="flex items-center space-x-1 pr-1 flex-shrink-0">
+                <button type="button" onclick="startCamera()" class="hidden md:flex w-8 h-8 text-gray-400 hover:text-indigo-600 hover:bg-white rounded-full transition items-center justify-center"><i class="fas fa-camera"></i></button>
                 <button id="mic-btn" type="button" onclick="toggleRecording()" class="w-8 h-8 text-gray-400 hover:text-red-500 hover:bg-white rounded-full transition flex items-center justify-center"><i class="fas fa-microphone"></i></button>
             </div>
         </div>
 
-        <button onclick="sendMessage()" class="w-12 h-12 bg-indigo-600 rounded-full text-white shadow-lg shadow-indigo-200 flex items-center justify-center hover:scale-105 active:scale-95 transition mb-1 flex-shrink-0">
+        <!-- Send Button -->
+        <button onclick="sendMessage()" class="w-10 h-10 md:w-12 md:h-12 bg-indigo-600 rounded-full text-white shadow-lg shadow-indigo-200 flex items-center justify-center hover:scale-105 active:scale-95 transition flex-shrink-0" title="Send (Enter or Ctrl+Enter)">
             <i class="fas fa-arrow-up text-lg"></i>
         </button>
     </div>
@@ -175,13 +189,28 @@
     // 3. ENTER = SEND, SHIFT+ENTER = NEW LINE
     const chatInput = document.getElementById('chat-input');
     chatInput.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
+        if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey) {
             e.preventDefault(); // Stop newline
             sendMessage();
+        } else if (e.key === 'Enter' && (e.shiftKey || e.ctrlKey)) {
+            // Allow Shift+Enter or Ctrl+Enter for new line
+            e.preventDefault();
+            const start = this.selectionStart;
+            const end = this.selectionEnd;
+            this.value = this.value.substring(0, start) + '\n' + this.value.substring(end);
+            this.selectionStart = this.selectionEnd = start + 1;
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        } else {
+            // Auto grow textarea
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
         }
-        // Auto grow
+    });
+    
+    chatInput.addEventListener('input', function() {
         this.style.height = 'auto';
-        this.style.height = (this.scrollHeight) + 'px';
+        this.style.height = Math.min(this.scrollHeight, 120) + 'px';
     });
 
     // 4. EMOJI
@@ -233,8 +262,15 @@
 
     // 7. SEND LOGIC (Optimistic UI)
     window.sendMessage = function() {
-        const message = chatInput.value.trim();
-        if (message && window.chatSocket) {
+        const input = document.getElementById('chat-input');
+        const message = input.value.trim();
+        
+        if (!message) {
+            input.focus();
+            return;
+        }
+        
+        if (window.chatSocket && window.chatSocket.readyState === WebSocket.OPEN) {
             // Local Time
             const now = new Date();
             const timeString = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
@@ -246,21 +282,32 @@
                     <p class="leading-relaxed text-gray-800 whitespace-pre-wrap">${message}</p>
                     <div class="flex justify-end items-center mt-1 select-none">
                         <span class="text-[10px] text-gray-400">${timeString}</span>
-                        <i class="fas fa-check-double text-[10px] text-gray-400 ml-1"></i>
+                        <i class="fas fa-check text-[10px] text-gray-400 ml-1"></i>
                     </div>
                 </div>
             </div>`;
             
+            const scroller = document.getElementById('chat-scroller');
             scroller.insertAdjacentHTML('beforeend', tempHTML);
-            scrollToBottom();
+            scroller.scrollTop = scroller.scrollHeight;
 
             window.chatSocket.send(JSON.stringify({ 
-                type: 'chat_message', message: message, user_id: currentUserId, reply_to: replyToId 
+                type: 'chat_message', 
+                message: message, 
+                user_id: currentUserId, 
+                reply_to: replyToId 
             }));
             
-            chatInput.value = '';
-            chatInput.style.height = '44px';
+            // Clear and reset input
+            input.value = '';
+            input.style.height = 'auto';
+            input.focus();
             cancelReply();
+            
+            // Close attach menu if open
+            document.getElementById('attach-menu') && document.getElementById('attach-menu').classList.add('hidden');
+        } else {
+            showToast('❌ Not connected. Please refresh.', 'red');
         }
     };
 
