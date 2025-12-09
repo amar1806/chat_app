@@ -20,10 +20,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-lnj3uz5awc3mm!mqub@+a_=ucqx*g3s)!)77%-w@dq_i(-5(_f'
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-lnj3uz5awc3mm!mqub@+a_=ucqx*g3s)!)77%-w@dq_i(-5(_f')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = ['*']
 
@@ -92,11 +92,11 @@ ASGI_APPLICATION = 'core.asgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'p2p_chat',        # DB name
-        'USER': 'postgres',        # Default superuser
-        'PASSWORD': 'Amar@1806', 
-        'HOST': 'localhost',
-        'PORT': '5432',
+        'NAME': os.getenv('DB_NAME', 'p2p_chat'),
+        'USER': os.getenv('DB_USER', 'postgres'),
+        'PASSWORD': os.getenv('DB_PASSWORD', 'Amar@1806'),
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'PORT': os.getenv('DB_PORT', '5432'),
     }
 }
 

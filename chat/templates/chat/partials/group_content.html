@@ -1,0 +1,127 @@
+{% load static %}
+
+<div class="flex flex-col h-full bg-white">
+    <!-- Header -->
+    <div class="border-b border-gray-200 p-4 flex items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50 md:block md:space-y-3">
+        <div class="flex-1">
+            <h2 class="text-lg md:text-xl font-bold text-gray-900">{{ group.name }}</h2>
+            <p class="text-xs md:text-sm text-gray-600">{{ group.members.count }} members</p>
+            {% if group.description %}
+                <p class="text-xs text-gray-500 mt-2">{{ group.description }}</p>
+            {% endif %}
+        </div>
+        
+        <div class="flex gap-2">
+            <button onclick="toggleGroupInfo()" class="md:hidden p-2 hover:bg-gray-100 rounded-lg transition">
+                <i class="fas fa-info-circle text-blue-600 text-lg"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Messages -->
+    <div class="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-white to-gray-50">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="flex {% if message.sender == request.user %}justify-end{% else %}justify-start{% endif %} animate-fade-in">
+                    <div class="max-w-[85%] md:max-w-[60%] relative px-4 py-2 rounded-2xl text-sm shadow-sm border border-transparent transition-all duration-200 group
+                                {% if message.sender == request.user %}bg-blue-500 text-white rounded-tr-none{% else %}bg-gray-100 text-gray-900 rounded-tl-none{% endif %}">
+                        
+                        {% if not message.sender == request.user %}
+                            <div class="text-xs font-semibold text-gray-600 mb-1">{{ message.sender.first_name|default:message.sender.username }}</div>
+                        {% endif %}
+                        
+                        {{ message.text }}
+                        
+                        <div class="flex {% if message.sender == request.user %}justify-end{% else %}justify-between{% endif %} items-center mt-1 select-none gap-1">
+                            <span class="text-[10px] {% if message.sender == request.user %}text-blue-100{% else %}text-gray-500{% endif %}">{{ message.timestamp|date:"h:i A" }}</span>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="flex items-center justify-center h-full text-gray-400 text-center">
+                <div>
+                    <i class="fas fa-comment text-4xl opacity-20 mb-2 block"></i>
+                    <p>No messages yet. Start the conversation!</p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Message Input -->
+    <div class="border-t border-gray-200 p-4 bg-white flex gap-3 items-end">
+        <textarea id="group-message-input" 
+                  class="flex-1 px-4 py-3 bg-gray-100 rounded-full outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white resize-none max-h-24 text-sm"
+                  placeholder="Type a message..."
+                  onkeydown="if(event.key === 'Enter' && !event.shiftKey) { sendGroupMessage(); event.preventDefault(); }"
+                  rows="1"></textarea>
+        
+        <button onclick="sendGroupMessage()" class="p-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition flex-shrink-0">
+            <i class="fas fa-paper-plane text-lg"></i>
+        </button>
+    </div>
+
+    <!-- Group Info Sidebar (Mobile) -->
+    <div id="group-info-modal" style="display: none;" class="fixed inset-0 bg-black/50 z-50 md:hidden" onclick="toggleGroupInfo()">
+        <div class="absolute right-0 top-0 bottom-0 w-80 bg-white shadow-lg p-6 space-y-6" onclick="event.stopPropagation()">
+            <button onclick="toggleGroupInfo()" class="absolute top-4 right-4 text-gray-600 hover:text-gray-900">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+            
+            <div>
+                <h3 class="font-bold text-gray-900 mb-4">{{ group.name }}</h3>
+                <p class="text-sm text-gray-600 mb-4">{{ group.members.count }} members</p>
+                {% if group.description %}
+                    <p class="text-sm text-gray-600">{{ group.description }}</p>
+                {% endif %}
+            </div>
+            
+            <div>
+                <h4 class="font-semibold text-gray-900 mb-3">Members</h4>
+                <div class="space-y-2">
+                    {% for member in members %}
+                        <div class="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
+                            <div>
+                                <p class="text-sm font-medium text-gray-900">{{ member.first_name|default:member.username }}</p>
+                                <p class="text-xs text-gray-500">{{ member.mobile }}</p>
+                            </div>
+                            {% if member == group.creator %}
+                                <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">Admin</span>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {% if request.user == group.creator %}
+                <button onclick="deleteGroup('{{ group.id }}')" class="w-full p-3 text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition font-medium text-sm">
+                    <i class="fas fa-trash-alt mr-2"></i> Delete Group
+                </button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+    function toggleGroupInfo() {
+        const modal = document.getElementById('group-info-modal');
+        modal.style.display = modal.style.display === 'none' ? 'flex' : 'none';
+    }
+
+    function sendGroupMessage() {
+        const input = document.getElementById('group-message-input');
+        const message = input.value.trim();
+        
+        if (!message) return;
+        
+        console.log('Group message:', message);
+        input.value = '';
+        // WebSocket implementation will go here
+    }
+
+    function deleteGroup(groupId) {
+        if (confirm('Delete this group? This action cannot be undone.')) {
+            window.location.href = `/group/delete/${groupId}/`;
+        }
+    }
+</script>

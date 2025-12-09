@@ -1,0 +1,144 @@
+{% load static %}
+
+<div class="flex flex-col h-full bg-white">
+    <!-- Header -->
+    <div class="border-b border-gray-200 p-4 flex items-center justify-between bg-gradient-to-r from-amber-50 to-orange-50 md:block md:space-y-3">
+        <div class="flex-1">
+            <h2 class="text-lg md:text-xl font-bold text-gray-900">{{ channel.name }}</h2>
+            <p class="text-xs md:text-sm text-gray-600">{{ channel.subscribers.count }} subscriber{{ channel.subscribers.count|pluralize }}</p>
+            {% if channel.description %}
+                <p class="text-xs text-gray-500 mt-2">{{ channel.description }}</p>
+            {% endif %}
+        </div>
+        
+        <div class="flex gap-2">
+            {% if is_creator %}
+                <button onclick="toggleChannelInfo()" class="md:hidden p-2 hover:bg-gray-100 rounded-lg transition">
+                    <i class="fas fa-info-circle text-orange-600 text-lg"></i>
+                </button>
+            {% else %}
+                <button onclick="unsubscribeChannel('{{ channel.id }}')" class="p-2 hover:bg-gray-100 rounded-lg transition text-gray-600">
+                    <i class="fas fa-bell-slash text-lg"></i>
+                </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Messages -->
+    <div class="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-white to-gray-50">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="flex justify-start animate-fade-in">
+                    <div class="max-w-[85%] md:max-w-[60%] relative px-4 py-2 rounded-2xl text-sm shadow-sm border border-transparent bg-gray-100 text-gray-900 rounded-tl-none">
+                        
+                        <div class="text-xs font-semibold text-gray-600 mb-1">
+                            <i class="fas fa-bullhorn mr-1"></i> {{ message.sender.first_name|default:message.sender.username }}
+                        </div>
+                        
+                        {{ message.text }}
+                        
+                        <div class="flex justify-between items-center mt-1 select-none gap-1">
+                            <span class="text-[10px] text-gray-500">{{ message.timestamp|date:"h:i A" }}</span>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="flex items-center justify-center h-full text-gray-400 text-center">
+                <div>
+                    <i class="fas fa-bullhorn text-4xl opacity-20 mb-2 block"></i>
+                    <p>No broadcasts yet</p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Message Input (Creator only) -->
+    {% if is_creator %}
+        <div class="border-t border-gray-200 p-4 bg-white flex gap-3 items-end">
+            <textarea id="channel-message-input" 
+                      class="flex-1 px-4 py-3 bg-gray-100 rounded-full outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white resize-none max-h-24 text-sm"
+                      placeholder="Broadcast a message..."
+                      onkeydown="if(event.key === 'Enter' && !event.shiftKey) { sendChannelMessage(); event.preventDefault(); }"
+                      rows="1"></textarea>
+            
+            <button onclick="sendChannelMessage()" class="p-3 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition flex-shrink-0">
+                <i class="fas fa-paper-plane text-lg"></i>
+            </button>
+        </div>
+    {% else %}
+        <div class="border-t border-gray-200 p-4 bg-gray-50 text-center text-sm text-gray-600">
+            <i class="fas fa-info-circle mr-2"></i> You can view messages but only the creator can post
+        </div>
+    {% endif %}
+
+    <!-- Channel Info Sidebar (Mobile) -->
+    <div id="channel-info-modal" style="display: none;" class="fixed inset-0 bg-black/50 z-50 md:hidden" onclick="toggleChannelInfo()">
+        <div class="absolute right-0 top-0 bottom-0 w-80 bg-white shadow-lg p-6 space-y-6" onclick="event.stopPropagation()">
+            <button onclick="toggleChannelInfo()" class="absolute top-4 right-4 text-gray-600 hover:text-gray-900">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+            
+            <div>
+                <h3 class="font-bold text-gray-900 mb-4">{{ channel.name }}</h3>
+                <p class="text-sm text-gray-600 mb-4">{{ channel.subscribers.count }} subscriber{{ channel.subscribers.count|pluralize }}</p>
+                {% if channel.description %}
+                    <p class="text-sm text-gray-600 mb-4">{{ channel.description }}</p>
+                {% endif %}
+                <div class="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded inline-block">
+                    {% if channel.is_public %}Public{% else %}Private{% endif %}
+                </div>
+            </div>
+
+            {% if is_creator %}
+                <div>
+                    <h4 class="font-semibold text-gray-900 mb-3">Subscribers ({{ channel.subscribers.count }})</h4>
+                    <div class="space-y-2 max-h-64 overflow-y-auto">
+                        {% for subscriber in subscribers %}
+                            <div class="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-900">{{ subscriber.first_name|default:subscriber.username }}</p>
+                                    <p class="text-xs text-gray-500">{{ subscriber.mobile }}</p>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <button onclick="deleteChannel('{{ channel.id }}')" class="w-full p-3 text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition font-medium text-sm">
+                    <i class="fas fa-trash-alt mr-2"></i> Delete Channel
+                </button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+    function toggleChannelInfo() {
+        const modal = document.getElementById('channel-info-modal');
+        modal.style.display = modal.style.display === 'none' ? 'flex' : 'none';
+    }
+
+    function sendChannelMessage() {
+        const input = document.getElementById('channel-message-input');
+        const message = input.value.trim();
+        
+        if (!message) return;
+        
+        console.log('Channel message:', message);
+        input.value = '';
+        // WebSocket implementation will go here
+    }
+
+    function unsubscribeChannel(channelId) {
+        if (confirm('Unsubscribe from this channel?')) {
+            window.location.href = `/channel/unsubscribe/${channelId}/`;
+        }
+    }
+
+    function deleteChannel(channelId) {
+        if (confirm('Delete this channel? This action cannot be undone.')) {
+            window.location.href = `/channel/delete/${channelId}/`;
+        }
+    }
+</script>

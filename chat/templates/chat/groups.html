@@ -1,0 +1,314 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Groups - P2P Connect</title>
+    
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" type="image/png" href="/static/images/logo_192.png">
+    <meta name="theme-color" content="#0f172a">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.6"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            overflow: hidden; 
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #1e293b;
+        }
+        
+        #app-layout { display: flex; height: 100vh; width: 100vw; }
+        
+        #col-nav { 
+            width: 70px; 
+            background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+            flex-shrink: 0; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            z-index: 50;
+            border-right: 1px solid rgba(255,255,255,0.1);
+            padding: 16px 0;
+        }
+
+        #col-list { 
+            width: 320px; 
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            display: flex; 
+            flex-direction: column; 
+            position: relative; 
+            resize: horizontal; 
+            overflow: hidden; 
+            min-width: 280px; 
+            max-width: 400px;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.08);
+        }
+
+        #col-stage { 
+            flex: 1; 
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            position: relative; 
+            display: flex; 
+            flex-direction: column; 
+            min-width: 0;
+        }
+
+        @media (max-width: 768px) {
+            #col-nav { display: none; } 
+            #col-list { width: 100% !important; resize: none; box-shadow: none; }
+            #col-stage { width: 100%; display: none; z-index: 100; position: fixed; top: 0; }
+        }
+
+        .nav-item {
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            color: #94a3b8;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 12px;
+            font-size: 20px;
+        }
+
+        .nav-item:hover { 
+            background: rgba(59, 130, 246, 0.1); 
+            color: #3b82f6;
+        }
+
+        .nav-item.active { 
+            background: #3b82f6; 
+            color: #fff;
+            border-radius: 12px;
+        }
+
+        .group-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e2e8f0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .group-item:hover {
+            background: #f1f5f9;
+        }
+
+        .group-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .group-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .group-name {
+            font-weight: 600;
+            color: #1e293b;
+            font-size: 14px;
+        }
+
+        .group-preview {
+            font-size: 12px;
+            color: #64748b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .header {
+            padding: 16px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .create-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            font-size: 18px;
+        }
+
+        .create-btn:hover {
+            background: #2563eb;
+            transform: scale(1.05);
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #64748b;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <div id="app-layout">
+        <!-- Sidebar Navigation -->
+        <div id="col-nav">
+            <!-- App Icon (will be replaced at runtime from manifest.json) -->
+            <div class="nav-item mb-4" id="sidebar-app-icon" data-replace-with-app-icon="true" onclick="window.location.href='{% url 'chat_dashboard' %}';" title="App">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+                    <i class="fas fa-comments text-white text-lg font-bold"></i>
+                </div>
+            </div>
+            <div class="nav-item" onclick="window.location.href='{% url 'chat_dashboard' %}';" title="Chats">
+                <i class="fas fa-comments"></i>
+            </div>
+            <div class="nav-item active" title="Groups">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="nav-item" onclick="window.location.href='{% url 'channels_page' %}';" title="Channels">
+                <i class="fas fa-bullhorn"></i>
+            </div>
+            <div class="nav-item" onclick="window.location.href='{% url 'calls_page' %}';" title="Calls">
+                <i class="fas fa-phone-alt"></i>
+            </div>
+            <div class="nav-item" onclick="window.location.href='{% url 'status_page' %}';" title="Status">
+                <i class="far fa-dot-circle"></i>
+            </div>
+            <div style="flex: 1;"></div>
+            <div class="nav-item" onclick="window.location.href='{% url 'contacts_page' %}';" title="Contacts">
+                <i class="fas fa-address-book"></i>
+            </div>
+            <div class="nav-item" onclick="window.location.href='{% url 'settings_page' %}';" title="Settings">
+                <i class="fas fa-cog"></i>
+            </div>
+        </div>
+
+        <!-- Groups List -->
+        <div id="col-list">
+            <div class="header">
+                <h1>Groups</h1>
+                <button class="create-btn" onclick="window.location.href='{% url 'create_group' %}';" title="Create Group">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+
+            <div style="flex: 1; overflow-y: auto;">
+                {% if groups %}
+                    {% for group in groups %}
+                        <div class="group-item" onclick="window.location.href='{% url 'get_group_content' group.id %}';">
+                            <div class="group-avatar">
+                                {{ group.name|first|upper }}
+                            </div>
+                            <div class="group-info">
+                                <div class="group-name">{{ group.name }}</div>
+                                <div class="group-preview">{{ group.members.count }} member{{ group.members.count|pluralize }}</div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <p>No groups yet</p>
+                        <p style="font-size: 12px; margin-top: 8px;">Create or join a group to get started</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <div id="col-stage">
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #64748b;">
+                <i class="fas fa-users" style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></i>
+                <p>Select a group to start chatting</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mobile responsiveness
+        function openGroup(groupId) {
+            const stage = document.getElementById('col-stage');
+            const list = document.getElementById('col-list');
+            
+            if (window.innerWidth <= 768) {
+                list.style.display = 'none';
+                stage.style.display = 'flex';
+            }
+        }
+
+        function backToList() {
+            const stage = document.getElementById('col-stage');
+            const list = document.getElementById('col-list');
+            
+            if (window.innerWidth <= 768) {
+                stage.style.display = 'none';
+                list.style.display = 'flex';
+            }
+        }
+    </script>
+    <script>
+        {% verbatim %}
+        // Populate sidebar icon and mobile app name from manifest
+        (function(){
+            fetch('/static/manifest.json').then(r=>r.json()).then(manifest=>{
+                const appName = manifest.name || manifest.short_name || 'App';
+                let icon = '/static/images/logo_192.png';
+                if (manifest.icons && manifest.icons.length) {
+                    const first = manifest.icons[0];
+                    icon = (typeof first === 'string') ? first : (first.src || first.icon || icon);
+                }
+                const sidebar = document.getElementById('sidebar-app-icon');
+                if (sidebar) sidebar.innerHTML = `<img src="${icon}" alt="${appName}" class="w-10 h-10 rounded-xl object-cover">`;
+                document.querySelectorAll('#mobile-app-name, .mobile-app-name').forEach(el => el.textContent = appName);
+            }).catch(()=>{});
+        })();
+        {% endverbatim %}
+    </script>
+</body>
+</html>
+{% endblock %}

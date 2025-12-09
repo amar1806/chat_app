@@ -1,7 +1,8 @@
 <div class="space-y-2 p-3">
     {% for chat in chat_list %}
-    <div class="chat-item relative group p-3 rounded-2xl hover:bg-blue-50 cursor-pointer transition-all duration-200 border border-transparent hover:border-blue-200 hover:shadow-md"
-         onclick="handleChatClick(this, '{% if chat.type == 'contact' %}{% url 'start_contact' chat.id %}{% else %}{% url 'get_chat_content' chat.id %}{% endif %}')"
+        <div class="chat-item relative group p-3 rounded-2xl hover:bg-blue-50 cursor-pointer transition-all duration-200 border border-transparent hover:border-blue-200 hover:shadow-md"
+            data-chat-url="{% if chat.type == 'contact' %}{% url 'start_contact' chat.id %}{% else %}{% url 'get_chat_content' chat.id %}{% endif %}"
+            onclick="handleChatClick(this, this.dataset.chatUrl)"
          ontouchstart="startLongPress(this)"
          ontouchend="endLongPress()">
         
@@ -102,4 +103,48 @@
         document.querySelectorAll('.selection-check').forEach(c => c.classList.add('hidden'));
         document.querySelectorAll('.chat-item').forEach(c => c.classList.remove('bg-gray-100'));
     }
+</script>
+<script>
+    // Auto-open first chat on desktop so the right panel is visible
+    document.addEventListener('DOMContentLoaded', function() {
+        try {
+            if (window.innerWidth >= 768) {
+                const first = document.querySelector('.chat-item');
+                if (first) {
+                    const url = first.dataset.chatUrl;
+                    if (url) {
+                        // Primary: HTMX
+                        if (typeof htmx !== 'undefined') {
+                            htmx.ajax('GET', url, '#main-panel');
+                        }
+
+                        // Always attempt a lightweight fetch fallback after a short delay
+                        setTimeout(async () => {
+                            const panel = document.getElementById('main-panel');
+                            // If HTMX already filled panel, don't override
+                            if (panel && panel.innerHTML && panel.innerHTML.trim().length > 20) {
+                                first.classList.add('bg-indigo-50', 'border-indigo-600');
+                                return;
+                            }
+
+                            try {
+                                const res = await fetch(url, { credentials: 'same-origin' });
+                                if (res.ok) {
+                                    const text = await res.text();
+                                    if (panel) panel.innerHTML = text;
+                                    first.classList.add('bg-indigo-50', 'border-indigo-600');
+                                } else {
+                                    console.warn('Auto-open fetch failed', res.status);
+                                }
+                            } catch (err) {
+                                console.warn('Auto-open fetch error', err);
+                            }
+                        }, 250);
+                    } else if (first.onclick) {
+                        first.click();
+                    }
+                }
+            }
+        } catch(e) { /* ignore */ }
+    });
 </script>

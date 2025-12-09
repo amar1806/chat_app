@@ -4,7 +4,7 @@ from django.db.models import Q
 from django.contrib.auth import get_user_model
 from django.http import HttpResponseForbidden
 from django.contrib import messages
-from .models import Conversation, Message, Contact
+from .models import Conversation, Message, Contact, Group, Channel
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
@@ -306,10 +306,310 @@ def save_contact_api(request):
     
     return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
 
-# --- PLACEHOLDERS ---
+# --- GROUP VIEWS ---
+
+@login_required
+def groups_page(request):
+    """List all groups for the user"""
+    user_groups = request.user.groups.all().prefetch_related('messages')
+    context = {
+        'groups': user_groups,
+    }
+    return render(request, 'chat/groups.html', context)
+
+@login_required
+def get_group_content(request, group_id):
+    """Get group chat content"""
+    group = get_object_or_404(Group, id=group_id)
+    if request.user not in group.members.all() and request.user != group.creator:
+        return HttpResponseForbidden()
+    
+    messages_list = group.messages.select_related('sender', 'reply_to').all()
+    context = {
+        'group': group,
+        'messages': messages_list,
+        'members': group.members.all(),
+    }
+    return render(request, 'chat/partials/group_content.html', context)
+
+@login_required
+def create_group(request):
+    """Create a new group"""
+    if request.method == "POST":
+        group_name = request.POST.get('name')
+        description = request.POST.get('description', '')
+        member_ids = request.POST.getlist('members')
+        
+        if not group_name:
+            messages.error(request, "Group name is required")
+            return redirect('groups_page')
+        
+        group = Group.objects.create(
+            name=group_name,
+            description=description,
+            creator=request.user
+        )
+        group.members.add(request.user)  # Add creator
+        
+        # Add selected members
+        if member_ids:
+            group.members.add(*member_ids)
+        
+        messages.success(request, f"Group '{group_name}' created successfully")
+        return redirect('groups_page')
+    
+    # Get all contacts for selection
+    contacts = Contact.objects.filter(owner=request.user).select_related('saved_user')
+    context = {'contacts': contacts}
+    return render(request, 'chat/create_group.html', context)
+
+@login_required
+def delete_group(request, group_id):
+    """Delete a group"""
+    group = get_object_or_404(Group, id=group_id)
+    if request.user != group.creator:
+        return HttpResponseForbidden("Only creator can delete group")
+    
+    group.delete()
+    messages.success(request, "Group deleted")
+    return redirect('groups_page')
+
+# --- CHANNEL VIEWS ---
+
 @login_required
 def channels_page(request):
-    return render(request, 'chat/partials/placeholder.html', {'title': 'Channels', 'icon': 'fas fa-bullhorn'})
+    """List all channels user is subscribed to"""
+    user_channels = request.user.subscribed_channels.all().prefetch_related('messages')
+    created_channels = Channel.objects.filter(creator=request.user)
+    context = {
+        'channels': user_channels,
+        'created_channels': created_channels,
+    }
+    return render(request, 'chat/channels.html', context)
+
+@login_required
+def get_channel_content(request, channel_id):
+    """Get channel content"""
+    channel = get_object_or_404(Channel, id=channel_id)
+    
+    # Check permissions
+    if channel.is_public or request.user in channel.subscribers.all() or request.user == channel.creator:
+        messages_list = channel.messages.select_related('sender', 'reply_to').all()
+        context = {
+            'channel': channel,
+            'messages': messages_list,
+            'subscribers': channel.subscribers.all(),
+            'is_creator': request.user == channel.creator,
+        }
+        return render(request, 'chat/partials/channel_content.html', context)
+    
+    return HttpResponseForbidden()
+
+@login_required
+def create_channel(request):
+    """Create a new channel"""
+    if request.method == "POST":
+        channel_name = request.POST.get('name')
+        description = request.POST.get('description', '')
+        is_public = request.POST.get('is_public') == 'on'
+        
+        if not channel_name:
+            messages.error(request, "Channel name is required")
+            return redirect('channels_page')
+        
+        channel = Channel.objects.create(
+            name=channel_name,
+            description=description,
+            creator=request.user,
+            is_public=is_public
+        )
+        channel.subscribers.add(request.user)  # Add creator as subscriber
+        
+        messages.success(request, f"Channel '{channel_name}' created successfully")
+        return redirect('channels_page')
+    
+    return render(request, 'chat/create_channel.html')
+
+@login_required
+def subscribe_channel(request, channel_id):
+    """Subscribe to a channel"""
+    channel = get_object_or_404(Channel, id=channel_id)
+    if not channel.is_public and request.user != channel.creator:
+        return HttpResponseForbidden("Cannot subscribe to private channel")
+    
+    channel.subscribers.add(request.user)
+    messages.success(request, f"Subscribed to '{channel.name}'")
+    return redirect('channels_page')
+
+@login_required
+def unsubscribe_channel(request, channel_id):
+    """Unsubscribe from a channel"""
+    channel = get_object_or_404(Channel, id=channel_id)
+    channel.subscribers.remove(request.user)
+    messages.success(request, f"Unsubscribed from '{channel.name}'")
+    return redirect('channels_page')
+
+@login_required
+def delete_channel(request, channel_id):
+    """Delete a channel"""
+    channel = get_object_or_404(Channel, id=channel_id)
+    if request.user != channel.creator:
+        return HttpResponseForbidden("Only creator can delete channel")
+    
+    channel.delete()
+    messages.success(request, "Channel deleted")
+    return redirect('channels_page')
+
+# --- MESSAGE ACTIONS ---
+
+@login_required
+@csrf_exempt
+def delete_message(request):
+    """Delete a message"""
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            message_id = data.get('message_id')
+            
+            msg = get_object_or_404(Message, id=message_id)
+            
+            # Only message sender can delete
+            if msg.sender != request.user:
+                return JsonResponse({'success': False, 'error': 'Not authorized'}, status=403)
+            
+            msg.delete()
+            return JsonResponse({'success': True, 'message': 'Message deleted'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+    
+    return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
+
+@login_required
+@csrf_exempt
+def forward_message(request):
+    """Forward a message to another chat"""
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            message_id = data.get('message_id')
+            target_chat_id = data.get('target_chat_id')
+            
+            msg = get_object_or_404(Message, id=message_id)
+            target_chat = get_object_or_404(Conversation, id=target_chat_id)
+            
+            # Check if user has access to target chat
+            if request.user != target_chat.initiator and request.user != target_chat.receiver:
+                return JsonResponse({'success': False, 'error': 'Not authorized'}, status=403)
+            
+            # Create forwarded message
+            forwarded_msg = Message.objects.create(
+                conversation=target_chat,
+                sender=request.user,
+                text=f"[Forwarded]: {msg.text}",
+                attachment=msg.attachment if msg.attachment else None,
+                is_media=msg.is_media,
+                is_forwarded=True
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Message forwarded',
+                'forwarded_message_id': str(forwarded_msg.id)
+            })
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+    
+    return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
+
+@login_required
+@csrf_exempt
+def delete_chat(request, chat_id):
+    """Delete entire conversation"""
+    try:
+        chat = get_object_or_404(Conversation, id=chat_id)
+        
+        # Check if user is part of the conversation
+        if request.user != chat.initiator and request.user != chat.receiver:
+            return JsonResponse({'success': False, 'error': 'Not authorized'}, status=403)
+        
+        # Delete all messages in conversation
+        chat.messages.all().delete()
+        chat.delete()
+        
+        return JsonResponse({'success': True, 'message': 'Chat deleted'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+@login_required
+@csrf_exempt
+def bulk_delete_messages(request):
+    """Delete multiple selected messages"""
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            message_ids = data.get('message_ids', [])
+            
+            if not message_ids:
+                return JsonResponse({'success': False, 'error': 'No messages selected'}, status=400)
+            
+            # Delete only messages owned by current user
+            deleted_count = Message.objects.filter(
+                id__in=message_ids,
+                sender=request.user
+            ).delete()[0]
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'{deleted_count} message(s) deleted'
+            })
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+    
+    return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
+
+@login_required
+@csrf_exempt
+def bulk_forward_messages(request):
+    """Forward multiple selected messages"""
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            message_ids = data.get('message_ids', [])
+            target_chat_id = data.get('target_chat_id')
+            
+            if not message_ids or not target_chat_id:
+                return JsonResponse({'success': False, 'error': 'Missing required fields'}, status=400)
+            
+            target_chat = get_object_or_404(Conversation, id=target_chat_id)
+            
+            # Check authorization
+            if request.user != target_chat.initiator and request.user != target_chat.receiver:
+                return JsonResponse({'success': False, 'error': 'Not authorized'}, status=403)
+            
+            messages_to_forward = Message.objects.filter(id__in=message_ids)
+            forwarded_count = 0
+            
+            for msg in messages_to_forward:
+                forwarded_msg = Message.objects.create(
+                    conversation=target_chat,
+                    sender=request.user,
+                    text=f"[Forwarded]: {msg.text}",
+                    attachment=msg.attachment if msg.attachment else None,
+                    is_media=msg.is_media,
+                    is_forwarded=True
+                )
+                forwarded_count += 1
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'{forwarded_count} message(s) forwarded'
+            })
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+    
+    return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
+
+# --- PLACEHOLDERS ---
 
 @login_required
 def status_page(request):

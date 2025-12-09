@@ -161,8 +161,8 @@
         
         <!-- SIDEBAR - Desktop Only -->
         <nav id="col-nav" class="hidden md:flex">
-            <!-- Logo -->
-            <div class="mb-8 p-2 hover:scale-110 transition duration-300 cursor-pointer">
+            <!-- Logo (replaced from manifest at runtime) -->
+            <div class="mb-8 p-2 hover:scale-110 transition duration-300 cursor-pointer" id="sidebar-app-icon" data-replace-with-app-icon="true">
                 <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
                     <i class="fas fa-comments text-white text-lg font-bold"></i>
                 </div>
@@ -179,13 +179,18 @@
                     <i class="fas fa-comment-dots"></i>
                 </button>
                 
+                <!-- Groups -->
+                <button class="nav-btn" 
+                        onclick="window.location.href='{% url 'groups_page' %}'" 
+                        title="Groups">
+                    <i class="fas fa-users"></i>
+                </button>
+                
                 <!-- Channels -->
                 <button class="nav-btn" 
-                        onclick="switchTab(this)" 
-                        hx-get="{% url 'channels_page' %}" 
-                        hx-target="#main-panel"
+                        onclick="window.location.href='{% url 'channels_page' %}'" 
                         title="Channels">
-                    <i class="fas fa-volume-up"></i>
+                    <i class="fas fa-bullhorn"></i>
                 </button>
                 
                 <!-- Calls -->
@@ -214,7 +219,7 @@
                     <!-- Header Row -->
                     <div class="flex items-center justify-between">
                         <div>
-                            <h1 class="text-2xl font-bold text-gray-900">Chats</h1>
+                            <h1 id="app-name" class="text-2xl font-bold text-gray-900">Chats</h1>
                             <p class="text-xs text-gray-500 mt-0.5">Stay connected</p>
                         </div>
                         <!-- Mobile Hamburger -->
@@ -251,22 +256,25 @@
             </button>
 
             <!-- Mobile Bottom Tabs (Mobile only) -->
-            <div class="md:hidden h-16 border-t border-gray-200 flex justify-around items-center bg-white flex-shrink-0 shadow-lg">
-                <button class="text-blue-600 flex flex-col items-center gap-1 flex-1 py-2 transition" 
+            <div class="md:hidden h-16 border-t border-gray-200 flex justify-around items-center bg-white flex-shrink-0 shadow-lg overflow-x-auto">
+                    <button class="text-blue-600 flex flex-col items-center gap-1 flex-1 py-2 transition whitespace-nowrap" 
                         onclick="switchTabMobile(this)" 
                         hx-get="{% url 'list_chats' %}" 
                         hx-target="#list-content">
                     <i class="fas fa-comment-dots text-lg"></i>
-                    <span class="text-xs font-medium">Chats</span>
+                    <span id="mobile-app-name" class="text-xs font-medium">Chats</span>
                 </button>
-                <button class="text-gray-400 flex flex-col items-center gap-1 flex-1 py-2 transition hover:text-gray-600" 
-                        onclick="switchTabMobile(this)" 
-                        hx-get="{% url 'channels_page' %}" 
-                        hx-target="#main-panel">
-                    <i class="fas fa-volume-up text-lg"></i>
+                <button class="text-gray-400 flex flex-col items-center gap-1 flex-1 py-2 transition hover:text-gray-600 whitespace-nowrap" 
+                        onclick="window.location.href='{% url 'groups_page' %}'">
+                    <i class="fas fa-users text-lg"></i>
+                    <span class="text-xs font-medium">Groups</span>
+                </button>
+                <button class="text-gray-400 flex flex-col items-center gap-1 flex-1 py-2 transition hover:text-gray-600 whitespace-nowrap" 
+                        onclick="window.location.href='{% url 'channels_page' %}'">
+                    <i class="fas fa-bullhorn text-lg"></i>
                     <span class="text-xs font-medium">Channels</span>
                 </button>
-                <button class="text-gray-400 flex flex-col items-center gap-1 flex-1 py-2 transition hover:text-gray-600" 
+                <button class="text-gray-400 flex flex-col items-center gap-1 flex-1 py-2 transition hover:text-gray-600 whitespace-nowrap" 
                         onclick="switchTabMobile(this)" 
                         hx-get="{% url 'calls_page' %}" 
                         hx-target="#main-panel">
@@ -467,6 +475,35 @@
                 input.value = '';
             }
         };
+    </script>
+    <script>
+        // Populate app name/icon from manifest (desktop sidebar + mobile label)
+        (function populateAppIdentity(){
+            fetch('/static/manifest.json')
+                .then(r => r.json())
+                .then(manifest => {
+                    const appName = manifest.name || manifest.short_name || 'App';
+                    let icon = '/static/images/logo_192.png';
+                    if (manifest.icons && manifest.icons.length) {
+                        const first = manifest.icons[0];
+                        icon = (typeof first === 'string') ? first : (first.src || first.icon || icon);
+                    }
+
+                    const sidebar = document.getElementById('sidebar-app-icon');
+                    if (sidebar) {
+                        sidebar.innerHTML = `<img src="${icon}" alt="${appName}" class="w-12 h-12 rounded-xl object-cover shadow-md">`;
+                    }
+
+                    // Replace chat header title (exact match 'Chats') and mobile label placeholders
+                    const appEls = document.querySelectorAll('#app-name, #mobile-app-name, .mobile-app-name, .app-name');
+                    appEls.forEach(el => { el.textContent = appName; });
+
+                    document.querySelectorAll('h1').forEach(h => {
+                        if (h.textContent && h.textContent.trim() === 'Chats') h.textContent = appName;
+                    });
+                })
+                .catch(()=>{});
+        })();
     </script>
 </body>
 </html>
