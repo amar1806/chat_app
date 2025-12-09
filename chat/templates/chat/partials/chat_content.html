@@ -10,203 +10,454 @@
             <button onclick="openForwardDialog()" class="p-2 hover:bg-indigo-500 rounded transition" title="Forward selected">
                 <i class="fas fa-share"></i>
             </button>
+            <button onclick="deleteSelectedMessages()" class="p-2 hover:bg-red-600 rounded transition" title="Delete selected">
+                <i class="fas fa-trash"></i>
+            </button>
         </div>
     </div>
+    
+    <div class="h-14 md:h-16 bg-white border-b border-gray-100 flex items-center justify-between px-3 md:px-6 z-20 flex-shrink-0 shadow-sm">
+        <div class="flex items-center min-w-0 flex-1">
+            <button class="md:hidden mr-3 text-gray-600 hover:bg-gray-100 p-2 rounded-full transition flex-shrink-0" onclick="closeMobileStage()">
+                <i class="fas fa-arrow-left text-lg"></i>
+            </button>
+            <div class="flex items-center cursor-pointer min-w-0 flex-1" hx-get="{% url 'get_user_profile' other_user.id %}" hx-target="#main-panel">
+                <div class="relative flex-shrink-0">
+                    <img src="https://ui-avatars.com/api/?name={{ display_name }}&background=random" class="w-10 h-10 rounded-full border border-gray-100 object-cover">
+                    <div class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></div>
+                </div>
+                <div class="ml-3 min-w-0 flex-1">
+                    <h2 class="font-bold text-gray-800 text-sm truncate">{{ display_name }}</h2>
+                    <p class="text-xs text-green-600 font-medium">Online</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-1 md:space-x-2 text-gray-500 relative flex-shrink-0">
+            {% if not is_contact %}
+            <button onclick="document.getElementById('save-contact-modal').classList.remove('hidden')" 
+                    class="hidden md:flex items-center bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100 transition shadow-sm border border-indigo-100">
+                <i class="fas fa-user-plus mr-2"></i> Save
+            </button>
+            {% endif %}
+            <button onclick="startAudioCall('{{ other_user.id }}', '{{ other_user.username }}')" class="w-9 h-9 md:w-10 md:h-10 hover:bg-gray-50 rounded-full transition flex items-center justify-center text-indigo-600 flex-shrink-0" title="Audio Call"><i class="fas fa-phone-alt text-sm md:text-base"></i></button>
+            <button onclick="startVideoCall('{{ other_user.id }}', '{{ other_user.username }}')" class="w-9 h-9 md:w-10 md:h-10 hover:bg-gray-50 rounded-full transition flex items-center justify-center text-indigo-600 flex-shrink-0" title="Video Call"><i class="fas fa-video text-sm md:text-base"></i></button>
+            <button id="header-menu-btn" class="w-9 h-9 md:w-10 md:h-10 hover:bg-gray-50 rounded-full transition flex items-center justify-center flex-shrink-0" onclick="toggleMenu('header-menu')"><i class="fas fa-ellipsis-v text-sm"></i></button>
+            <div id="header-menu" class="hidden absolute top-12 right-0 bg-white shadow-xl rounded-xl w-48 py-2 text-sm z-50 border border-gray-100 text-left animate-fade-in popup-menu">
+                <div class="px-4 py-2 hover:bg-gray-50 cursor-pointer flex items-center" onclick="searchMessages()"><i class="fas fa-search w-6 text-gray-400"></i> Search</div>
+                <div class="px-4 py-2 hover:bg-gray-50 cursor-pointer flex items-center"><i class="fas fa-volume-mute w-6 text-gray-400"></i> Mute</div>
+                <div class="border-t border-gray-100 my-1"></div>
+                <div class="px-4 py-2 hover:bg-red-50 text-red-600 cursor-pointer flex items-center" onclick="deleteConversation()"><i class="fas fa-trash w-6"></i> Delete Chat</div>
+                <div class="px-4 py-2 hover:bg-red-50 text-red-600 cursor-pointer flex items-center"><i class="fas fa-ban w-6"></i> Block</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="chat-scroller" class="flex-1 overflow-y-auto px-3 md:px-20 py-4 md:py-6 space-y-3 bg-[#efeae2] bg-opacity-50 scroll-smooth">
+        <div class="flex justify-center mb-6">
+            <span class="bg-gray-200 text-gray-500 text-[10px] px-3 py-1 rounded-full font-bold shadow-sm uppercase tracking-wide">Today</span>
+        </div>
+
+        {% for message in messages %}
+        <div class="flex w-full {% if message.sender == request.user %}justify-end{% else %}justify-start{% endif %} group relative mb-2 message-item" 
+             id="msg-{{ message.id }}" 
+             data-message-id="{{ message.id }}"
+             data-message-text="{{ message.text|escapejs }}"
+             oncontextmenu="showContextMenu(event, '{{ message.id }}', '{{ message.sender.id }}', {{ request.user.id }})"
+             ontouchstart="startLongPress(event, '{{ message.id }}', '{{ message.sender.id }}', {{ request.user.id }})"
+             ontouchend="cancelLongPress()"
+             data-touch-start-x="0">
+            
+            <!-- RECEIVED MESSAGE LAYOUT (Left aligned) -->
+            {% if message.sender != request.user %}
+            <div class="flex items-end gap-2 w-full">
+                <!-- Reply Icon on Right (Mobile swipe-to-reply) -->
+                <div class="hidden md:flex items-center">
+                    <button class="w-8 h-8 rounded-full text-gray-400 opacity-0 group-hover:opacity-100 hover:text-indigo-600 hover:bg-black/5 transition flex items-center justify-center flex-shrink-0" 
+                            onclick="setReply('{{ message.id }}', '{{ message.text|escapejs }}')" 
+                            title="Reply"
+                            data-reply-btn>
+                        <i class="fas fa-reply text-sm"></i>
+                    </button>
+                </div>
+                
+                <!-- Message Bubble -->
+                <div class="max-w-[85%] md:max-w-[60%] relative px-3 md:px-4 py-2 rounded-2xl text-xs md:text-sm shadow-sm bg-white rounded-tl-none border border-gray-100 transition-all duration-200 select-none group"
+                     style="cursor: grab;">
+                    {% if message.reply_to %}
+                    <div class="bg-black/5 border-l-4 border-indigo-500 p-2 mb-2 rounded text-xs cursor-pointer hover:bg-black/10 transition opacity-80" onclick="scrollToMessage('msg-{{ message.reply_to.id }}')">
+                        <span class="font-bold text-indigo-600 block mb-0.5 text-[10px] uppercase">Replying to</span>
+                        <p class="truncate text-gray-600">{{ message.reply_to.text }}</p>
+                    </div>
+                    {% endif %}
+                    {% if message.attachment %}
+                        {% if message.is_media %}
+                            <div class="rounded-lg overflow-hidden mb-2 mt-1 relative group/media">
+                                <img src="{{ message.attachment.url }}" class="max-h-72 w-full object-cover cursor-pointer hover:opacity-95 transition" onclick="window.open(this.src)">
+                            </div>
+                        {% else %}
+                            <a href="{{ message.attachment.url }}" target="_blank" class="flex items-center bg-black/5 p-3 rounded-lg mb-2 hover:bg-black/10 transition group/file">
+                                <div class="w-8 h-8 bg-indigo-100 text-indigo-600 rounded flex items-center justify-center mr-3"><i class="fas fa-file-alt"></i></div>
+                                <div class="flex-1 min-w-0"><p class="truncate font-medium text-indigo-900">{{ message.text }}</p><p class="text-[10px] text-gray-500">Download File</p></div>
+                            </a>
+                        {% endif %}
+                    {% endif %}
+                    {% if message.text and not message.attachment %}<p class="leading-relaxed text-gray-800 whitespace-pre-wrap">{{ message.text }}</p>{% endif %}
+                    <div class="flex justify-between items-center mt-1 select-none gap-1">
+                        <span class="text-[10px] text-gray-400">{{ message.timestamp|date:"h:i A" }}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- SENT MESSAGE LAYOUT (Right aligned) -->
+            {% else %}
+            <div class="flex items-end gap-2 w-full justify-end">
+                <!-- Message Bubble -->
+                <div class="max-w-[85%] md:max-w-[60%] relative px-3 md:px-4 py-2 rounded-2xl text-xs md:text-sm shadow-sm bg-[#d9fdd3] rounded-tr-none border border-green-100 transition-all duration-200 select-none group"
+                     style="cursor: grab;">
+                    {% if message.reply_to %}
+                    <div class="bg-black/5 border-l-4 border-indigo-500 p-2 mb-2 rounded text-xs cursor-pointer hover:bg-black/10 transition opacity-80" onclick="scrollToMessage('msg-{{ message.reply_to.id }}')">
+                        <span class="font-bold text-indigo-600 block mb-0.5 text-[10px] uppercase">Replying to</span>
+                        <p class="truncate text-gray-600">{{ message.reply_to.text }}</p>
+                    </div>
+                    {% endif %}
+                    {% if message.attachment %}
+                        {% if message.is_media %}
+                            <div class="rounded-lg overflow-hidden mb-2 mt-1 relative group/media">
+                                <img src="{{ message.attachment.url }}" class="max-h-72 w-full object-cover cursor-pointer hover:opacity-95 transition" onclick="window.open(this.src)">
+                            </div>
+                        {% else %}
+                            <a href="{{ message.attachment.url }}" target="_blank" class="flex items-center bg-black/5 p-3 rounded-lg mb-2 hover:bg-black/10 transition group/file">
+                                <div class="w-8 h-8 bg-indigo-100 text-indigo-600 rounded flex items-center justify-center mr-3"><i class="fas fa-file-alt"></i></div>
+                                <div class="flex-1 min-w-0"><p class="truncate font-medium text-indigo-900">{{ message.text }}</p><p class="text-[10px] text-gray-500">Download File</p></div>
+                            </a>
+                        {% endif %}
+                    {% endif %}
+                    {% if message.text and not message.attachment %}<p class="leading-relaxed text-gray-800 whitespace-pre-wrap">{{ message.text }}</p>{% endif %}
+                    <div class="flex justify-between items-center mt-1 select-none gap-1">
+                        <span class="text-[10px] text-gray-400">{{ message.timestamp|date:"h:i A" }}</span>
+                        <i class="fas fa-check-double text-[10px] {% if message.is_read %}text-blue-500{% else %}text-gray-400{% endif %}"></i>
+                    </div>
+                </div>
+                
+                <!-- Reply Icon Next to Sent Message (Desktop hover) -->
+                <div class="hidden md:flex items-center">
+                    <button class="w-8 h-8 rounded-full text-gray-400 opacity-0 group-hover:opacity-100 hover:text-indigo-600 hover:bg-black/5 transition flex items-center justify-center flex-shrink-0" 
+                            onclick="setReply('{{ message.id }}', '{{ message.text|escapejs }}')" 
+                            title="Reply"
+                            data-reply-btn>
+                        <i class="fas fa-reply text-sm"></i>
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    <div id="reply-bar" class="hidden bg-gray-50 border-t p-2 px-3 md:px-6 flex justify-between items-center animate-fade-in">
+        <div class="flex-1 border-l-4 border-indigo-500 pl-3 min-w-0">
+            <span class="text-xs text-indigo-600 font-bold">Replying to...</span>
+            <p id="reply-text" class="text-xs text-gray-500 truncate">...</p>
+        </div>
+        <button onclick="cancelReply()" class="w-8 h-8 rounded-full hover:bg-gray-200 flex items-center justify-center text-gray-500 flex-shrink-0"><i class="fas fa-times"></i></button>
+    </div>
+
+    <div class="p-3 bg-white border-t border-gray-100 flex items-end space-x-2 md:space-x-3 z-30 px-3 md:px-6 gap-2">
+        <!-- Attach Button -->
+        <div class="relative hidden md:block">
+            <button id="attach-btn" type="button" onclick="toggleMenu('attach-menu')" class="w-10 h-10 text-gray-500 hover:text-indigo-600 hover:bg-gray-100 rounded-full transition flex items-center justify-center text-xl flex-shrink-0"><i class="fas fa-plus"></i></button>
+            <div id="attach-menu" class="hidden absolute bottom-14 left-0 bg-white shadow-xl rounded-2xl border border-gray-100 p-3 flex flex-col gap-3 animate-fade-in w-40 popup-menu">
+                <button onclick="document.getElementById('file-input').click()" class="flex items-center space-x-3 text-gray-600 hover:text-indigo-600 transition p-1"><i class="fas fa-image text-purple-600"></i><span class="text-sm font-medium">Gallery</span></button>
+                <button onclick="document.getElementById('audio-input').click()" class="flex items-center space-x-3 text-gray-600 hover:text-indigo-600 transition p-1"><i class="fas fa-music text-red-600"></i><span class="text-sm font-medium">Audio</span></button>
+                <button onclick="startCamera()" class="flex items-center space-x-3 text-gray-600 hover:text-indigo-600 transition p-1"><i class="fas fa-camera text-pink-600"></i><span class="text-sm font-medium">Camera</span></button>
+                <button class="flex items-center space-x-3 text-gray-600 hover:text-indigo-600 transition p-1"><i class="fas fa-poll text-yellow-600"></i><span class="text-sm font-medium">Poll</span></button>
+                <button class="flex items-center space-x-3 text-gray-600 hover:text-indigo-600 transition p-1"><i class="fas fa-user text-blue-600"></i><span class="text-sm font-medium">Contact</span></button>
+                <button class="flex items-center space-x-3 text-gray-600 hover:text-indigo-600 transition p-1"><i class="fas fa-map-marker-alt text-green-600"></i><span class="text-sm font-medium">Location</span></button>
+            </div>
+        </div>
+
+        <!-- Mobile Action Icons -->
+        <div class="md:hidden flex items-center gap-1 flex-shrink-0">
+            <button onclick="document.getElementById('file-input').click()" class="w-9 h-9 text-gray-500 hover:text-indigo-600 hover:bg-gray-100 rounded-full transition flex items-center justify-center"><i class="fas fa-image"></i></button>
+            <button onclick="startCamera()" class="w-9 h-9 text-gray-500 hover:text-indigo-600 hover:bg-gray-100 rounded-full transition flex items-center justify-center"><i class="fas fa-camera"></i></button>
+        </div>
+
+        <input type="file" id="file-input" hidden onchange="uploadFile(this)">
+        <input type="file" id="audio-input" hidden accept="audio/*" onchange="uploadFile(this)">
+
+        <!-- Message Input -->
+        <div class="flex-1 bg-gray-100 rounded-3xl flex items-center px-2 py-1 transition focus-within:ring-2 focus-within:ring-indigo-100 border border-transparent focus-within:border-indigo-200 relative min-h-11">
+            <button id="emoji-trigger" type="button" class="w-8 h-8 md:w-9 md:h-9 text-gray-400 hover:text-yellow-500 rounded-full hover:bg-gray-200/50 flex items-center justify-center transition flex-shrink-0"><i class="far fa-smile text-lg"></i></button>
+            <textarea id="chat-input" 
+                      rows="1" 
+                      class="flex-1 bg-transparent border-none outline-none px-2 text-sm text-gray-800 placeholder-gray-500 resize-none py-2 md:py-3" 
+                      placeholder="Type a message..." 
+                      style="min-height: 40px; max-height: 120px;"></textarea>
+            <div class="flex items-center space-x-1 pr-1 flex-shrink-0">
+                <button type="button" onclick="startCamera()" class="hidden md:flex w-8 h-8 text-gray-400 hover:text-indigo-600 hover:bg-white rounded-full transition items-center justify-center"><i class="fas fa-camera"></i></button>
+                <button id="mic-btn" type="button" onclick="toggleRecording()" class="w-8 h-8 text-gray-400 hover:text-red-500 hover:bg-white rounded-full transition flex items-center justify-center"><i class="fas fa-microphone"></i></button>
+            </div>
+        </div>
+
+        <!-- Send Button -->
+        <button onclick="sendMessage()" class="w-10 h-10 md:w-12 md:h-12 bg-indigo-600 rounded-full text-white shadow-lg shadow-indigo-200 flex items-center justify-center hover:scale-105 active:scale-95 transition flex-shrink-0" title="Send (Enter or Ctrl+Enter)">
+            <i class="fas fa-arrow-up text-lg"></i>
+        </button>
+    </div>
+
+    <div id="save-contact-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl w-80 shadow-2xl p-6 animate-fade-in">
+            <h2 class="text-lg font-bold mb-4">Save Contact</h2>
+            <form action="{% url 'add_contact' %}" method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="chat_dashboard">
+                <input type="hidden" name="mobile" value="{{ other_user.mobile }}">
+                <label class="block text-xs font-bold text-gray-500 mb-1">Name</label>
+                <input type="text" name="name" required class="w-full border rounded p-2 mb-4 text-sm" placeholder="Enter name">
+                <div class="flex space-x-2">
+                    <button type="button" onclick="document.getElementById('save-contact-modal').classList.add('hidden')" class="flex-1 py-2 text-gray-500 hover:bg-gray-100 rounded">Cancel</button>
+                    <button type="submit" class="flex-1 py-2 bg-indigo-600 text-white rounded shadow">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="camera-modal" class="hidden absolute inset-0 z-[70] bg-black flex flex-col">
+        <div class="flex-1 relative bg-black flex items-center justify-center">
+            <video id="camera-stream" autoplay playsinline class="w-full h-full object-contain"></video>
+            <canvas id="camera-canvas" class="hidden"></canvas>
+        </div>
+        <div class="h-24 bg-black/50 absolute bottom-0 w-full flex justify-center items-center space-x-10 pb-4">
+            <button onclick="closeCamera()" class="text-white hover:text-red-400"><i class="fas fa-times text-2xl"></i></button>
+            <button onclick="takePhoto()" class="w-16 h-16 rounded-full border-4 border-white bg-white/20 hover:bg-white transition"></button>
+        </div>
+    </div>
+
+    <!-- Forward Dialog -->
+    <div id="forward-dialog" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center z-[80]" onclick="closeForwardDialog()">
+        <div class="bg-white rounded-2xl w-96 max-w-[90vw] shadow-2xl p-6 animate-fade-in" onclick="event.stopPropagation()">
+            <h2 class="text-lg font-bold text-gray-800 mb-4">Forward to Contact</h2>
+            <div id="forward-contacts-list" class="space-y-2 max-h-96 overflow-y-auto mb-6">
+                <!-- Dynamically populated -->
+            </div>
+            <div class="flex gap-2">
+                <button onclick="closeForwardDialog()" class="flex-1 py-2 px-4 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition font-medium">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@joeattardi/emoji-button@4.6.0/dist/index.min.js"></script>
 <script>
-            let selectedMessages = new Set();
-            let touchStartX = 0;
-            let touchStartY = 0;
+    // 1. RE-INIT
+    if(window.initChat) window.initChat("{{ chat.id }}", "{{ request.user.id }}");
+    window.currentChatUrl = "{% url 'get_chat_content' chat.id %}";
+    let replyToId = null;
+    const currentUserId = "{{ request.user.id }}";
 
-            function updateSelectionUI() {
-                const toolbar = document.getElementById('multi-select-toolbar');
-                const count = selectedMessages.size;
-                if (count > 0) {
-                    toolbar.classList.remove('hidden');
-                    document.getElementById('selected-count').textContent = `${count} selected`;
-                } else {
-                    toolbar.classList.add('hidden');
-                }
-            }
+    // 2. AUTO SCROLL
+    const scroller = document.getElementById('chat-scroller');
+    const scrollToBottom = () => { scroller.scrollTop = scroller.scrollHeight; };
+    scrollToBottom();
 
-            function clearSelection() {
-                selectedMessages.forEach(msgId => {
-                    const msgElement = document.getElementById(`msg-${msgId}`);
-                    if (msgElement) msgElement.classList.remove('ring-2', 'ring-indigo-500', 'bg-indigo-50');
+    // 3. ENTER = SEND, SHIFT+ENTER = NEW LINE
+    const chatInput = document.getElementById('chat-input');
+    chatInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey) {
+            e.preventDefault(); // Stop newline
+            sendMessage();
+        } else if (e.key === 'Enter' && (e.shiftKey || e.ctrlKey)) {
+            // Allow Shift+Enter or Ctrl+Enter for new line
+            e.preventDefault();
+            const start = this.selectionStart;
+            const end = this.selectionEnd;
+            this.value = this.value.substring(0, start) + '\n' + this.value.substring(end);
+            this.selectionStart = this.selectionEnd = start + 1;
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        } else {
+            // Auto grow textarea
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        }
+    });
+    
+    chatInput.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+    });
+
+    // 4. EMOJI
+    const picker = new EmojiButton({ position: 'top-start', theme: 'auto', autoHide: false, zIndex: 100 });
+    const trigger = document.querySelector('#emoji-trigger');
+    picker.on('emoji', selection => {
+        chatInput.value += selection.emoji;
+        chatInput.focus();
+    });
+    trigger.addEventListener('click', () => picker.togglePicker(trigger));
+
+    // 5. GLOBAL CLICK
+    function toggleMenu(id) {
+        ['header-menu', 'attach-menu'].forEach(m => {
+            if(m !== id) document.getElementById(m).classList.add('hidden');
+        });
+        document.getElementById(id).classList.toggle('hidden');
+    }
+    function handleGlobalClick(e) {
+        const attachMenu = document.getElementById('attach-menu');
+        const headerMenu = document.getElementById('header-menu');
+        const attachBtn = document.getElementById('attach-btn');
+        const headerBtn = document.getElementById('header-menu-btn');
+        if (!attachMenu.contains(e.target) && !attachBtn.contains(e.target)) attachMenu.classList.add('hidden');
+        if (!headerMenu.contains(e.target) && !headerBtn.contains(e.target)) headerMenu.classList.add('hidden');
+    }
+
+    // 6. REAL-TIME RECEIVER LOGIC
+    // Called by dashboard.html socket listener
+    window.appendMessage = function(msg, senderId, myId) {
+        // Calculate local time for display
+        const now = new Date();
+        const timeString = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+        if (senderId != myId) {
+            const html = `
+            <div class="flex w-full justify-start group relative mb-2 animate-fade-in">
+                <div class="max-w-[75%] md:max-w-[60%] relative px-4 py-2 rounded-2xl text-sm shadow-sm bg-white rounded-tl-none border-gray-100 border">
+                    <p class="leading-relaxed text-gray-800 whitespace-pre-wrap">${msg}</p>
+                    <div class="flex justify-end items-center mt-1 select-none">
+                        <span class="text-[10px] text-gray-400">${timeString}</span>
+                    </div>
+                </div>
+            </div>`;
+            scroller.insertAdjacentHTML('beforeend', html);
+            scrollToBottom();
+        }
+    };
+
+    // 7. SEND LOGIC (Optimistic UI)
+    window.sendMessage = function() {
+        const input = document.getElementById('chat-input');
+        const message = input.value.trim();
+        
+        if (!message) {
+            input.focus();
+            return;
+        }
+        
+        if (window.chatSocket && window.chatSocket.readyState === WebSocket.OPEN) {
+            // Local Time
+            const now = new Date();
+            const timeString = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+            // Optimistic Append
+            const tempHTML = `
+            <div class="flex w-full justify-end group relative mb-2 animate-fade-in">
+                <div class="max-w-[75%] md:max-w-[60%] relative px-4 py-2 rounded-2xl text-sm shadow-sm bg-[#d9fdd3] rounded-tr-none border-green-100 border">
+                    <p class="leading-relaxed text-gray-800 whitespace-pre-wrap">${message}</p>
+                    <div class="flex justify-end items-center mt-1 select-none">
+                        <span class="text-[10px] text-gray-400">${timeString}</span>
+                        <i class="fas fa-check text-[10px] text-gray-400 ml-1"></i>
+                    </div>
+                </div>
+            </div>`;
+            
+            const scroller = document.getElementById('chat-scroller');
+            scroller.insertAdjacentHTML('beforeend', tempHTML);
+            scroller.scrollTop = scroller.scrollHeight;
+
+            window.chatSocket.send(JSON.stringify({ 
+                type: 'chat_message', 
+                message: message, 
+                user_id: currentUserId, 
+                reply_to: replyToId 
+            }));
+            
+            // Clear and reset input
+            input.value = '';
+            input.style.height = 'auto';
+            input.focus();
+            cancelReply();
+            
+            // Close attach menu if open
+            document.getElementById('attach-menu') && document.getElementById('attach-menu').classList.add('hidden');
+        } else {
+            showToast('❌ Not connected. Please refresh.', 'red');
+        }
+    };
+
+    // 8. MEDIA & CAMERA (Existing logic)
+    function uploadFile(input) { if (input.files && input.files[0]) uploadProcess(input.files[0]); }
+    function uploadProcess(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('room_id', "{{ chat.id }}");
+        formData.append('user_id', "{{ request.user.id }}");
+        fetch('/chat/api/upload/', { method: 'POST', body: formData }).then(res=>res.json()).then(data=>{
+            if(data.status === 'ok') window.chatSocket.send(JSON.stringify({ type:'chat_message', message:data.filename, user_id:"{{ request.user.id }}", file_url:data.file_url, is_media:data.is_media }));
+        });
+        document.getElementById('attach-menu').classList.add('hidden');
+    }
+
+    let stream;
+    async function startCamera() {
+        document.getElementById('camera-modal').classList.remove('hidden');
+        document.getElementById('attach-menu').classList.add('hidden');
+        try { stream = await navigator.mediaDevices.getUserMedia({ video: true }); document.getElementById('camera-stream').srcObject = stream; } catch(e) { alert("Camera access denied"); closeCamera(); }
+    }
+    function closeCamera() { document.getElementById('camera-modal').classList.add('hidden'); if(stream) stream.getTracks().forEach(t => t.stop()); }
+    function takePhoto() {
+        const video = document.getElementById('camera-stream');
+        const canvas = document.getElementById('camera-canvas');
+        canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+        canvas.toBlob(blob => { uploadProcess(new File([blob], "photo.jpg", { type: "image/jpeg" })); closeCamera(); }, 'image/jpeg');
+    }
+
+    let mediaRecorder, isRecording = false, audioChunks = [];
+    async function toggleRecording() {
+        const btn = document.getElementById('mic-btn');
+        if (!isRecording) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                mediaRecorder.start();
+                isRecording = true;
+                btn.innerHTML = '<i class="fas fa-stop text-red-500"></i>';
+                audioChunks = [];
+                mediaRecorder.addEventListener("dataavailable", event => audioChunks.push(event.data));
+                mediaRecorder.addEventListener("stop", () => {
+                    uploadProcess(new File([new Blob(audioChunks, { type: 'audio/webm' })], "voice_note.webm", { type: "audio/webm" }));
                 });
-                selectedMessages.clear();
-                updateSelectionUI();
-                closeAllMenus();
-            }
+            } catch(e) { alert("Microphone access denied."); }
+        } else {
+            mediaRecorder.stop();
+            isRecording = false;
+            btn.innerHTML = '<i class="fas fa-microphone"></i>';
+        }
+    }
 
-            function startLongPress(event, msgId, senderId, currentUserId) {
-                if (window.innerWidth >= 768) return; // desktop uses right-click
-                const touch = event.touches && event.touches[0];
-                if (touch) { touchStartX = touch.clientX; touchStartY = touch.clientY; }
-                longPressTimer = setTimeout(() => showMobileMenu(event, msgId, senderId, currentUserId), 500);
-            }
+    function setReply(id, text) { replyToId = id; document.getElementById('reply-bar').classList.remove('hidden'); document.getElementById('reply-text').innerText = text; chatInput.focus(); }
+    function cancelReply() { replyToId = null; document.getElementById('reply-bar').classList.add('hidden'); }
 
-            function cancelLongPress() { clearTimeout(longPressTimer); }
-
-            // Swipe-to-Reply (mobile) - detect left swipe
-            function handleTouchMove(event, msgId, senderId, currentUserId) {
-                const touch = event.touches && event.touches[0];
-                if (!touch) return;
-                const touchEndX = touch.clientX, touchEndY = touch.clientY;
-                const horizontal = touchStartX - touchEndX; // left swipe positive
-                const verticalDistance = Math.abs(touchEndY - touchStartY);
-                // left swipe threshold 50px, ignore large vertical movement
-                if (horizontal > 50 && verticalDistance < 30) {
-                    clearTimeout(longPressTimer);
-                    const msgElement = document.getElementById(`msg-${msgId}`);
-                    if (msgElement) {
-                        msgElement.style.transform = 'translateX(-8px)';
-                        setTimeout(() => { msgElement.style.transform = 'translateX(0)'; }, 180);
-                        // set reply using message text
-                        setReply(msgId, msgElement.getAttribute('data-message-text'));
-                        showToast('↩️ Reply mode activated', 'blue');
-                    }
+    // Calling Functions
+    function startAudioCall(userId, username) {
+        const message = `📞 Incoming audio call from ${window.currentUsername || 'Unknown'}`;
+        alert(`Starting audio call with ${username}...`);
+        if (window.chatSocket && window.chatSocket.readyState === WebSocket.OPEN) {
+            window.chatSocket.send(JSON.stringify({
+                'type': 'call_signal',
+                'user_id': "{{ request.user.id }}",
+                'signal_type': 'call_initiate',
+                'payload': {
+                    'callType': 'audio',
+                    'callerId': "{{ request.user.id }}",
+                    'callerName': "{{ request.user.username }}"
                 }
-            }
-
-            function showContextMenu(event, msgId, senderId, currentUserId) {
-                event.preventDefault();
-                closeAllMenus();
-                const msgElement = document.getElementById(`msg-${msgId}`);
-                if (!msgElement) return;
-
-                const menu = document.createElement('div');
-                menu.className = 'fixed bg-white rounded-lg shadow-xl border border-gray-200 z-50 animate-fade-in popup-menu';
-                menu.id = 'context-menu';
-
-                const isOwner = senderId == currentUserId;
-                const msgText = msgElement.getAttribute('data-message-text') || '';
-
-                menu.innerHTML = `
-                    <div class="py-2 min-w-max">
-                        <button onclick="toggleSelectMessage('${msgId}')" class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-indigo-50 flex items-center gap-2"><i class="fas fa-check-square text-indigo-600 w-4"></i> Select</button>
-                        <button onclick="copyMessage('${msgId}')" class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-indigo-50 flex items-center gap-2"><i class="fas fa-copy text-blue-600 w-4"></i> Copy</button>
-                        <button onclick="setReply('${msgId}', '${msgText.replace(/'/g, "\\'")}')" class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-indigo-50 flex items-center gap-2"><i class="fas fa-reply text-green-600 w-4"></i> Reply</button>
-                        <button onclick="showSimpleInfo('${msgId}')" class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-indigo-50 flex items-center gap-2"><i class="fas fa-info-circle text-blue-600 w-4"></i> Info</button>
-                        <button onclick="pinMessage('${msgId}')" class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-indigo-50 flex items-center gap-2"><i class="fas fa-thumbtack text-amber-600 w-4"></i> Pin</button>
-                        <button onclick="forwardMessage('${msgId}')" class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-indigo-50 flex items-center gap-2"><i class="fas fa-share text-green-600 w-4"></i> Forward</button>
-                        ${isOwner ? `\n                <div class="border-t border-gray-200 my-1"></div>\n                <button onclick="deleteMessage('${msgId}')" class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"><i class="fas fa-trash w-4"></i> Delete</button>\n                ` : ''}
-                    </div>`;
-
-                document.body.appendChild(menu);
-
-                // Position menu: prefer near mouse, but keep inside viewport and above if at bottom
-                const rect = menu.getBoundingClientRect();
-                let left = event.clientX;
-                let top = event.clientY;
-                // adjust horizontal overflow
-                if (left + rect.width + 10 > window.innerWidth) left = Math.max(10, window.innerWidth - rect.width - 10);
-                // adjust vertical overflow: if menu would go below viewport, show above
-                if (top + rect.height + 10 > window.innerHeight) top = Math.max(10, event.clientY - rect.height - 10);
-                menu.style.left = left + 'px';
-                menu.style.top = top + 'px';
-
-                setTimeout(() => { document.addEventListener('click', closeContextMenu); }, 0);
-            }
-
-            function showMobileMenu(event, msgId, senderId, currentUserId) {
-                const msgElement = document.getElementById(`msg-${msgId}`);
-                if (!msgElement) return;
-
-                const menu = document.createElement('div');
-                menu.className = 'fixed bg-white rounded-lg shadow-xl border border-gray-200 z-50 animate-slide-up popup-menu';
-                menu.id = 'mobile-menu';
-
-                const isOwner = senderId == currentUserId;
-                const msgText = msgElement.getAttribute('data-message-text') || '';
-                menu.innerHTML = `
-                    <div class="py-2 min-w-max">
-                        <button onclick="toggleSelectMessage('${msgId}')" class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-indigo-50 flex items-center gap-2"><i class="fas fa-check-square text-indigo-600 w-4"></i> Select</button>
-                        <button onclick="copyMessage('${msgId}')" class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-indigo-50 flex items-center gap-2"><i class="fas fa-copy text-blue-600 w-4"></i> Copy</button>
-                        <button onclick="setReply('${msgId}', '${msgText.replace(/'/g, "\\'")}')" class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-indigo-50 flex items-center gap-2"><i class="fas fa-reply text-green-600 w-4"></i> Reply</button>
-                        <button onclick="showSimpleInfo('${msgId}')" class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-indigo-50 flex items-center gap-2"><i class="fas fa-info-circle text-blue-600 w-4"></i> Info</button>
-                        <button onclick="pinMessage('${msgId}')" class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-indigo-50 flex items-center gap-2"><i class="fas fa-thumbtack text-amber-600 w-4"></i> Pin</button>
-                        <button onclick="forwardMessage('${msgId}')" class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-indigo-50 flex items-center gap-2"><i class="fas fa-share text-green-600 w-4"></i> Forward</button>
-                        ${isOwner ? `\n                <div class="border-t border-gray-200 my-1"></div>\n                <button onclick="deleteMessage('${msgId}')" class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"><i class="fas fa-trash w-4"></i> Delete</button>\n                ` : ''}
-                    </div>`;
-
-                document.body.appendChild(menu);
-
-                // Position: if near bottom, show above message; else show centered near bottom
-                const msgRect = msgElement.getBoundingClientRect();
-                const menuRect = menu.getBoundingClientRect();
-                if (msgRect.bottom + menuRect.height + 20 > window.innerHeight) {
-                    // show above message
-                    const top = Math.max(10, msgRect.top - menuRect.height - 8);
-                    menu.style.top = top + 'px';
-                    menu.style.left = Math.min(window.innerWidth - menuRect.width - 10, Math.max(10, msgRect.left + (msgRect.width/2) - (menuRect.width/2))) + 'px';
-                } else {
-                    menu.style.bottom = '100px';
-                    menu.style.left = '50%';
-                    menu.style.transform = 'translateX(-50%)';
-                    menu.style.maxWidth = '85vw';
-                }
-
-                setTimeout(() => { document.addEventListener('click', closeMobileMenu); }, 0);
-            }
-
-            function closeContextMenu() { const menu = document.getElementById('context-menu'); if (menu) menu.remove(); document.removeEventListener('click', closeContextMenu); }
-            function closeMobileMenu() { const menu = document.getElementById('mobile-menu'); if (menu) menu.remove(); document.removeEventListener('click', closeMobileMenu); }
-            function closeAllMenus() { closeContextMenu(); closeMobileMenu(); }
-
-            function toggleSelectMessage(msgId) {
-                const msgElement = document.getElementById(`msg-${msgId}`);
-                if (!msgElement) return;
-                if (selectedMessages.has(msgId)) { selectedMessages.delete(msgId); msgElement.classList.remove('ring-2', 'ring-indigo-500', 'bg-indigo-50'); }
-                else { selectedMessages.add(msgId); msgElement.classList.add('ring-2', 'ring-indigo-500', 'bg-indigo-50'); }
-                updateSelectionUI(); closeAllMenus();
-            }
-
-            function copyMessage(msgId) {
-                const msgElement = document.getElementById(`msg-${msgId}`); if (!msgElement) return; const msgText = msgElement.getAttribute('data-message-text'); if (!msgText) return;
-                navigator.clipboard.writeText(msgText).then(() => { showToast('✓ Message copied to clipboard', 'green'); closeAllMenus(); }).catch(() => { showToast('❌ Failed to copy message', 'red'); });
-            }
-
-            // keep deleteConversation, deleteSelectedMessages, forward helpers as-is (existing functions remain)
-
-            // Rebind swipe listeners using data attributes (safer)
-            document.querySelectorAll('.message-item').forEach(item => {
-                const msgId = item.getAttribute('data-message-id');
-                const senderId = item.getAttribute('data-sender-id');
-                const currentUserId = "{{ request.user.id }}";
-                item.addEventListener('touchmove', (e) => handleTouchMove(e, msgId, senderId, currentUserId), { passive: true });
-                item.addEventListener('touchend', cancelLongPress, { passive: true });
-                item.addEventListener('touchstart', (e) => { const t = e.touches && e.touches[0]; if (t) { touchStartX = t.clientX; touchStartY = t.clientY; } }, { passive: true });
-            });
-
-            // Fetch manifest.json and populate app name/icon where possible
-            {% verbatim %}(function loadAppManifest(){
-                fetch('/static/manifest.json').then(res => res.json()).then(manifest => {
-                    const appName = manifest.name || manifest.short_name || 'App';
-                    let icon = '/static/images/logo_192.png';
-                    if (manifest.icons && manifest.icons.length) icon = manifest.icons[0].src || icon;
-                    if (manifest.icon) icon = manifest.icon;
-
-                    // Replace any title that says 'Chats'
-                    document.querySelectorAll('h1, h2, .page-title, .title, .chats-title, #chats-title').forEach(el => {
-                        if (el.textContent && el.textContent.trim() === 'Chats') el.textContent = appName;
-                    });
-
-                    // Place app name in mobile header placeholders
-                    document.querySelectorAll('#mobile-app-name, .mobile-app-name').forEach(el => el.textContent = appName);
-
-                    // Replace sidebar placeholder icon if present
-                    const sidebarIconPlaceholder = document.querySelector('#sidebar-app-icon, .sidebar-app-icon, [data-replace-with-app-icon="true"]');
-                    if (sidebarIconPlaceholder) {
-                        sidebarIconPlaceholder.innerHTML = `<img src="${icon}" alt="${appName}" class="w-10 h-10 rounded-full object-cover">`;
-                    }
-
-                    // Also set any element with id app-name
-                    document.querySelectorAll('#app-name, .app-name').forEach(el => el.textContent = appName);
-                }).catch(() => {/* ignore safely */});
-            })();{% endverbatim %}
-
-            // Global click handler for menus
-            document.addEventListener('click', handleGlobalClick);
+            }));
+        }
     }
 
     function startVideoCall(userId, username) {
